@@ -1,0 +1,29 @@
+node_modules
+npm-debug.log
+Dockerfile
+.dockerignore
+.git
+.gitignore
+
+# Environment files
+.env
+.env.*
+
+# Logs
+logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode
+.idea
+
+# Build cache
+coverage
+.nyc_output
+
+# TypeScript source maps
+*.tsbuildinfo

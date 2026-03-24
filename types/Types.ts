@@ -21,3 +21,14 @@ export type LpayLoad = {
   username: string;
   email: string;
 };
+export interface Profileprop {
+  name?: string;
+  bio?: string;
+  url?: string;
+  introAudio?: string;
+  profilePhoto?: string;
+  private?: boolean;
+  followers?: number;
+  following?: number;
+  posts?: number;
+}

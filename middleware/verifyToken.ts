@@ -5,9 +5,13 @@ type ResponseError = {
   success: boolean;
   message: string | object;
 };
-
-interface AuthRequest extends Request {
-  user?: string | JwtPayload;
+interface UserPayload extends JwtPayload {
+  id: string;
+  username: string;
+  email: string;
+}
+export interface AuthRequest extends Request {
+  user?: UserPayload;
 }
 
 // Middleware
@@ -22,13 +26,14 @@ export const verifyToken = (
     return res.status(401).json({ success: false, message: "No token found" });
   }
 
-  const secret = process.env.JWT_SECRET;
+  const secret = process.env.JWT_SECRET_KEY || process.env.JWT_SECRET;
   if (!secret) {
-    throw new Error("JWT_SECRET is not defined");
+    throw new Error("JWT_SECRET_KEY is not defined");
   }
 
   try {
-    const decoded = jwt.verify(token, secret);
+    const decoded = jwt.verify(token, secret) as UserPayload;
+    req.user = decoded;
     next();
   } catch (err: any) {
     return res.status(401).json({ success: false, message: err });

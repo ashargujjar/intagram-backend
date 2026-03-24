@@ -9,6 +9,8 @@ import {
   buildVerificationEmailHtml,
   buildOtpEmailHtml,
 } from "../emails/mails";
+import { ProfileClass } from "../model/Profile";
+import { AuthRequest } from "../middleware/verifyToken";
 
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -44,7 +46,7 @@ export const signup = async (
     const baseUrl = frontEndUrl.replace(/\/+$/, "");
     const verifyUrl = `${baseUrl}/verify-account/verify?token=${encodeURIComponent(token)}`;
     const html = buildVerificationEmailHtml(username, verifyUrl);
-
+    await ProfileClass.saveBio(save._id);
     await SendMAil(email, "Verify your Rabta account", html);
 
     return res.status(201).json({
@@ -108,7 +110,7 @@ export const login = async (
     };
 
     const token = await jwt.sign(payload, process.env.JWT_SECRET_KEY, {
-      expiresIn: "1h",
+      expiresIn: "1d",
     });
     return res.status(200).json({
       success: true,
@@ -394,6 +396,106 @@ export const resetPassword = async (
     return res.status(500).json({
       success: false,
       message,
+    });
+  }
+};
+// ---------- update password ------------
+export const updatePassword = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  const { currentPassword, newPassword } = req.body || {};
+  if (!req.user) {
+    return res
+      .status(401)
+      .json({ success: false, message: "auth token not found or expires" });
+  }
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({
+      success: false,
+      message: "currentPassword and newPassword are required",
+    });
+  }
+  if (currentPassword === newPassword) {
+    return res.status(400).json({
+      success: false,
+      message: "New password must be different from current password",
+    });
+  }
+  const username: string = req.user?.username;
+  try {
+    const user = await UserClass.GetUserByUsername(username);
+    if (!user) {
+      return res
+        .status(400)
+        .json({ success: false, message: "user not found" });
+    }
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Incorrect Password",
+      });
+    }
+    const hash = await bcrypt.hash(newPassword, 5);
+    user.password = hash;
+    await user.save();
+    return res.status(200).json({
+      success: true,
+      message: "Password updated successfully",
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: "an error accoured" });
+  }
+};
+
+//  ---------- profile photho upload -------------
+export const uploadProfile = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  try {
+    if (!req.user) {
+      return res
+        .status(401)
+        .json({ success: false, message: "auth token not found or expires" });
+    }
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No image file uploaded" });
+    }
+    const host = req.get("host");
+    const protocol = req.protocol;
+    const photoUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    const updatedProfile = await ProfileClass.updateProfilePhoto(
+      req.user.username,
+      photoUrl,
+    );
+    if (!updatedProfile) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found for this user",
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      message: "Profile photo updated successfully",
+      data: {
+        userbio: {
+          ...updatedProfile,
+          username: req.user?.username,
+          email: req.user?.email,
+        },
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to update profile photo",
     });
   }
 };

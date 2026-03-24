@@ -1,17 +1,16 @@
-import mongoose, { mongo } from "mongoose";
+import mongoose from "mongoose";
+const def = {
+  type: String,
+  required: true,
+};
 const userschema = new mongoose.Schema({
   username: {
     type: String,
     required: true,
+    unique: true,
   },
-  email: {
-    type: String,
-    required: true,
-  },
-  password: {
-    type: String,
-    required: true,
-  },
+  email: def,
+  password: def,
   intrest: {
     type: [String],
     required: true,
@@ -31,35 +30,52 @@ const userschema = new mongoose.Schema({
     default: Date.now,
   },
 });
+
 const forgotPasswordSchema = new mongoose.Schema({
-  otp: {
-    type: String,
-    required: true,
-  },
+  otp: def,
   createdAt: {
     type: Date,
     default: Date.now,
     expires: 260,
   },
 });
+
 const otpSchema = new mongoose.Schema({
-  userId: {
-    type: String,
-    required: true,
-  },
-  otp: {
-    type: String,
-    required: true,
-  },
+  userId: def,
+  otp: def,
   expiresAt: {
     type: Date,
     required: true,
-    default: () => new Date(Date.now() + 5 * 60 * 1000), //  5 min default
-    index: { expires: 0 }, // TTL
+    default: () => new Date(Date.now() + 5 * 60 * 1000),
+    index: { expires: 300 },
   },
+});
+const profileSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+    index: true,
+  },
+  name: { type: String, default: "" },
+  bio: { type: String, default: "" },
+  url: {
+    type: String,
+    default: "",
+  },
+  introAudio: { type: String, default: "" },
+  profilePhoto: { type: String, default: "" },
+  private: {
+    type: Boolean,
+    default: false,
+  },
+  followers: { type: Number, default: 0 },
+  followings: { type: Number, default: 0 },
+  posts: { type: Number, default: 0 },
 });
 export const Otp = mongoose.model("Otp", otpSchema);
 export const User = mongoose.model("User", userschema);
+export const Profile = mongoose.model("Profile", profileSchema);
 export const ForgotPassword = mongoose.model(
   "ForgotPassword",
   forgotPasswordSchema,

@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { ApiResponse, IUser, LpayLoad, LUser } from "../types/Types";
 import { UserClass } from "../model/User";
 import { Otp, User } from "../schema/schema";
@@ -11,6 +11,8 @@ import {
 } from "../emails/mails";
 import { ProfileClass } from "../model/Profile";
 import { AuthRequest } from "../middleware/verifyToken";
+import { unlink } from "node:fs/promises";
+import path from "node:path";
 
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -20,7 +22,6 @@ function generateOTP(): string {
 export const signup = async (
   req: Request<{}, {}, IUser>,
   res: Response<ApiResponse>,
-  next: NextFunction,
 ) => {
   const { email, password, username, intrest } = req.body;
 
@@ -471,6 +472,10 @@ export const uploadProfile = async (
     const host = req.get("host");
     const protocol = req.protocol;
     const photoUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    const existingProfile = await ProfileClass.getBioByUsername(
+      req.user.username,
+    );
+    const previousUrl = existingProfile?.profilePhoto;
     const updatedProfile = await ProfileClass.updateProfilePhoto(
       req.user.username,
       photoUrl,
@@ -480,6 +485,28 @@ export const uploadProfile = async (
         success: false,
         message: "Profile not found for this user",
       });
+    }
+    if (
+      previousUrl &&
+      previousUrl.trim() !== "" &&
+      previousUrl !== photoUrl
+    ) {
+      const pathname =
+        previousUrl.startsWith("http://") || previousUrl.startsWith("https://")
+          ? new URL(previousUrl).pathname
+          : previousUrl;
+      const relativePath = pathname.replace(/^\/+/, "");
+      const filePath = path.resolve(process.cwd(), relativePath);
+      try {
+        await unlink(filePath);
+      } catch (fileError: any) {
+        if (fileError?.code !== "ENOENT") {
+          console.log(
+            "Error deleting old profile photo:",
+            fileError?.message || fileError,
+          );
+        }
+      }
     }
     return res.status(200).json({
       success: true,

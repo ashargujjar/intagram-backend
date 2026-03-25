@@ -2,6 +2,8 @@ import { Response } from "express";
 import { ApiResponse, Profileprop } from "../types/Types";
 import { ProfileClass } from "../model/Profile";
 import { AuthRequest } from "../middleware/verifyToken";
+import { unlink } from "node:fs/promises";
+import path from "node:path";
 // ---------------- get Bio --------
 export const getBio = async (req: AuthRequest, res: Response<ApiResponse>) => {
   if (!req.user?.username) {
@@ -106,6 +108,87 @@ export const updateBio = async (
     return res.status(500).json({
       success: false,
       message,
+    });
+  }
+};
+// ------------- delete profile photho ---------------
+export const deleteProfile = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  if (!req.user?.username) {
+    return res.status(401).json({
+      success: false,
+      message: "invalid token. user not found",
+    });
+  }
+
+  const username = req.user.username;
+
+  try {
+    const profile = await ProfileClass.getBioByUsername(username);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "user not found",
+      });
+    }
+
+    const url = profile.profilePhoto;
+
+    if (!url || url.trim() === "") {
+      return res.status(200).json({
+        success: true,
+        message: "No profile photo to delete",
+        data: {
+          userbio: {
+            ...profile,
+            username: req.user?.username,
+            email: req.user?.email,
+          },
+        },
+      });
+    }
+
+    const pathname =
+      url.startsWith("http://") || url.startsWith("https://")
+        ? new URL(url).pathname
+        : url;
+    const relativePath = pathname.replace(/^\/+/, "");
+    const filePath = path.resolve(process.cwd(), relativePath);
+
+    try {
+      await unlink(filePath);
+    } catch (fileError: any) {
+      if (fileError.code !== "ENOENT") {
+        throw new Error("Error deleting file: " + fileError.message);
+      }
+      console.log("File not found, continuing...");
+    }
+
+    const updatedProfile = await ProfileClass.updateProfilePhoto(username, "");
+    if (!updatedProfile) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found for this user",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Photo removed successfully",
+      data: {
+        userbio: {
+          ...updatedProfile,
+          username: req.user?.username,
+          email: req.user?.email,
+        },
+      },
+    });
+  } catch (error: unknown) {
+    return res.status(400).json({
+      success: false,
+      message: error instanceof Error ? error.message : "something went wrong",
     });
   }
 };

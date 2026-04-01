@@ -1,4 +1,4 @@
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 export type ApiResponse<T = any> = {
   success: boolean;
   message?: string | object;
@@ -31,4 +31,11 @@ export interface Profileprop {
   followers?: number;
   following?: number;
   posts?: number;
+}
+// photho upload
+export interface PhothoInterface {
+  userId: string;
+  caption?: string;
+  post: string[];
+  descAudio?: string;
 }

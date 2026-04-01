@@ -192,3 +192,153 @@ export const deleteProfile = async (
     });
   }
 };
+
+// ------------- upload intro audio ---------------
+export const uploadIntroAudio = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  try {
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No audio file uploaded" });
+    }
+
+    const audioUrl = `/uploads/${req.file.filename}`;
+
+    const existingProfile = await ProfileClass.getBioByUsername(
+      req.user!.username,
+    );
+    const previousUrl = existingProfile?.introAudio;
+
+    const updatedProfile = await ProfileClass.updateIntroAudio(
+      req.user!.username,
+      audioUrl,
+    );
+    if (!updatedProfile) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found for this user",
+      });
+    }
+
+    if (previousUrl && previousUrl.trim() !== "" && previousUrl !== audioUrl) {
+      const pathname =
+        previousUrl.startsWith("http://") || previousUrl.startsWith("https://")
+          ? new URL(previousUrl).pathname
+          : previousUrl;
+      const relativePath = pathname.replace(/^\/+/, "");
+      const filePath = path.resolve(process.cwd(), relativePath);
+      try {
+        await unlink(filePath);
+      } catch (fileError: any) {
+        if (fileError?.code !== "ENOENT") {
+          console.log(
+            "Error deleting old intro audio:",
+            fileError?.message || fileError,
+          );
+        }
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Intro audio updated successfully",
+      data: {
+        userbio: {
+          ...updatedProfile,
+          username: req.user?.username,
+          email: req.user?.email,
+        },
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to update intro audio",
+    });
+  }
+};
+
+// ------------- delete intro audio ---------------
+export const deleteIntroAudio = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  if (!req.user?.username) {
+    return res.status(401).json({
+      success: false,
+      message: "invalid token. user not found",
+    });
+  }
+
+  const username = req.user.username;
+
+  try {
+    const profile = await ProfileClass.getBioByUsername(username);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "user not found",
+      });
+    }
+
+    const url = profile.introAudio;
+
+    if (!url || url.trim() === "") {
+      return res.status(200).json({
+        success: true,
+        message: "No intro audio to delete",
+        data: {
+          userbio: {
+            ...profile,
+            username: req.user?.username,
+            email: req.user?.email,
+          },
+        },
+      });
+    }
+
+    const pathname =
+      url.startsWith("http://") || url.startsWith("https://")
+        ? new URL(url).pathname
+        : url;
+    const relativePath = pathname.replace(/^\/+/, "");
+    const filePath = path.resolve(process.cwd(), relativePath);
+
+    try {
+      await unlink(filePath);
+    } catch (fileError: any) {
+      if (fileError.code !== "ENOENT") {
+        throw new Error("Error deleting file: " + fileError.message);
+      }
+      console.log("File not found, continuing...");
+    }
+
+    const updatedProfile = await ProfileClass.updateIntroAudio(username, "");
+    if (!updatedProfile) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found for this user",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Intro audio removed successfully",
+      data: {
+        userbio: {
+          ...updatedProfile,
+          username: req.user?.username,
+          email: req.user?.email,
+        },
+      },
+    });
+  } catch (error: unknown) {
+    return res.status(400).json({
+      success: false,
+      message: error instanceof Error ? error.message : "something went wrong",
+    });
+  }
+};

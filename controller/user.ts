@@ -35,7 +35,7 @@ export const signup = async (
     };
     const token = await jwt.sign(payload, process.env.JWT_SECRET_KEY!, {
       expiresIn: "1h",
-    });
+    }); // verification token snet to gmail
 
     const frontEndUrl = process.env.FRONT_END_URL;
     if (!frontEndUrl) {
@@ -406,11 +406,7 @@ export const updatePassword = async (
   res: Response<ApiResponse>,
 ) => {
   const { currentPassword, newPassword } = req.body || {};
-  if (!req.user) {
-    return res
-      .status(401)
-      .json({ success: false, message: "auth token not found or expires" });
-  }
+
   if (!currentPassword || !newPassword) {
     return res.status(400).json({
       success: false,
@@ -423,7 +419,7 @@ export const updatePassword = async (
       message: "New password must be different from current password",
     });
   }
-  const username: string = req.user?.username;
+  const username: string = req.user!?.username;
   try {
     const user = await UserClass.GetUserByUsername(username);
     if (!user) {
@@ -459,25 +455,19 @@ export const uploadProfile = async (
   res: Response<ApiResponse>,
 ) => {
   try {
-    if (!req.user) {
-      return res
-        .status(401)
-        .json({ success: false, message: "auth token not found or expires" });
-    }
     if (!req.file) {
       return res
         .status(400)
         .json({ success: false, message: "No image file uploaded" });
     }
-    const host = req.get("host");
-    const protocol = req.protocol;
-    const photoUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+
+    const photoUrl = `/uploads/${req.file.filename}`;
     const existingProfile = await ProfileClass.getBioByUsername(
-      req.user.username,
+      req.user!.username,
     );
     const previousUrl = existingProfile?.profilePhoto;
     const updatedProfile = await ProfileClass.updateProfilePhoto(
-      req.user.username,
+      req.user!.username,
       photoUrl,
     );
     if (!updatedProfile) {
@@ -486,11 +476,7 @@ export const uploadProfile = async (
         message: "Profile not found for this user",
       });
     }
-    if (
-      previousUrl &&
-      previousUrl.trim() !== "" &&
-      previousUrl !== photoUrl
-    ) {
+    if (previousUrl && previousUrl.trim() !== "" && previousUrl !== photoUrl) {
       const pathname =
         previousUrl.startsWith("http://") || previousUrl.startsWith("https://")
           ? new URL(previousUrl).pathname

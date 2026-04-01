@@ -22,7 +22,7 @@ const storage = multer.diskStorage({
   },
 });
 
-// File filter
+// File filter (images)
 const fileFilter = (
   req: Request,
   file: Express.Multer.File,
@@ -43,6 +43,31 @@ const fileFilter = (
   }
 };
 
+// File filter (audio)
+const audioFileFilter = (
+  req: Request,
+  file: Express.Multer.File,
+  cb: FileFilterCallback,
+) => {
+  const allowedAudioTypes = [
+    "audio/webm",
+    "audio/ogg",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/mp4",
+    "audio/wav",
+    "audio/x-wav",
+  ];
+  const isWebm = file.mimetype.startsWith("audio/webm");
+  const isOgg = file.mimetype.startsWith("audio/ogg");
+
+  if (allowedAudioTypes.includes(file.mimetype) || isWebm || isOgg) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only audio files are allowed (webm, ogg, mp3, mp4, wav)"));
+  }
+};
+
 // Multer instance
 const upload = multer({
   storage,
@@ -52,6 +77,15 @@ const upload = multer({
   fileFilter,
 });
 
+const uploadAudio = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+  fileFilter: audioFileFilter,
+});
+
 // Export (ESM style)
 export const uploadSingle = upload.single("image");
-export const uploadMultiple = upload.array("images", 10);
+export const uploadMultiple = upload.array("images", 3);
+export const uploadSingleAudio = uploadAudio.single("audio");

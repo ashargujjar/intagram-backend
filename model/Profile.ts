@@ -9,7 +9,6 @@ class ProfileClass {
     }
 
     const profile = await Profile.findOne({ userId: user._id });
-    console.log(profile);
     if (!profile) {
       return null;
     }
@@ -72,6 +71,25 @@ class ProfileClass {
     const profile = await Profile.findOneAndUpdate(
       { userId: user._id },
       { $set: { profilePhoto } },
+      { new: true, upsert: true },
+    );
+
+    if (!profile) {
+      return null;
+    }
+
+    return profile.toObject();
+  }
+
+  static async updateIntroAudio(username: string, introAudio: string) {
+    const user = await User.findOne({ username });
+    if (!user) {
+      return null;
+    }
+
+    const profile = await Profile.findOneAndUpdate(
+      { userId: user._id },
+      { $set: { introAudio } },
       { new: true, upsert: true },
     );
 

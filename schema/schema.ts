@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+﻿import mongoose from "mongoose";
 const def = {
   type: String,
   required: true,
@@ -73,6 +73,70 @@ const profileSchema = new mongoose.Schema({
   followings: { type: Number, default: 0 },
   posts: { type: Number, default: 0 },
 });
+const replySchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    text: { type: String, required: true, trim: true },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: true },
+);
+
+const commentSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    text: { type: String, required: true, trim: true },
+    replies: { type: [replySchema], default: [] },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: true },
+);
+
+const postSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    post: {
+      type: [String],
+      default: [],
+    },
+    descAudio: {
+      type: String,
+      default: "",
+    },
+    caption: { type: String, default: "" },
+    likesCount: {
+      type: Number,
+      default: 0,
+    },
+    commentsCount: {
+      type: Number,
+      default: 0,
+    },
+    likedBy: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+      default: [],
+    },
+    comments: {
+      type: [commentSchema],
+      default: [],
+    },
+  },
+  { timestamps: true },
+);
+export const Posts = mongoose.model("Post", postSchema);
 export const Otp = mongoose.model("Otp", otpSchema);
 export const User = mongoose.model("User", userschema);
 export const Profile = mongoose.model("Profile", profileSchema);

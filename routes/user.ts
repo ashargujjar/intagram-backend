@@ -16,14 +16,16 @@ import {
   uploadIntroAudio,
 } from "../controller/profile";
 import {
-  uploadMultiple,
   uploadSingle,
   uploadSingleAudio,
+  uploadPostMedia,
 } from "../middleware/multerConfig";
 import { checkValidUser } from "../util/functions";
 import { getPhotos, uploadPhoto } from "../controller/photos";
 import { verify } from "node:crypto";
+import { deleteCommnet, PostComment } from "../controller/comments";
 const user = express.Router();
+// --------- POST ---------
 user.post("/login", login);
 user.post("/signup", signup);
 user.post("/verify", VerifyAccount);
@@ -42,11 +44,22 @@ user.post(
   uploadSingleAudio,
   uploadIntroAudio,
 );
-user.post("/photo", verifyToken, checkValidUser, uploadMultiple, uploadPhoto);
+user.post("/photo", verifyToken, checkValidUser, uploadPostMedia, uploadPhoto);
+user.post(
+  "/comment",
+  verifyToken,
+  checkValidUser,
+  uploadSingleAudio,
+  PostComment,
+);
+// __________ GET ___________
 user.get("/bio", verifyToken, getBio);
 user.get("/photo", verifyToken, checkValidUser, getPhotos);
+// ____________ PUT ______________
 user.put("/bio", verifyToken, updateBio);
 user.put("/password", verifyToken, checkValidUser, updatePassword);
+// ____________ delete ____________
 user.delete("/profilePhoto", verifyToken, deleteProfile);
 user.delete("/profile/intro-audio", verifyToken, deleteIntroAudio);
+user.delete("/comment", verifyToken, checkValidUser, deleteCommnet); // delete commment
 export { user };

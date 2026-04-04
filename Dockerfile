@@ -1,9 +1,12 @@
-FROM node:20-alpine AS build
+FROM node:20-alpine
 WORKDIR /app
-COPY package.json ./
+
+ENV NODE_ENV=development
+
+COPY package.json package-lock.json ./
 RUN npm ci
+
 COPY . .
-RUN npm run build
 
 EXPOSE 3000
-CMD
+CMD ["npm", "run", "dev"]

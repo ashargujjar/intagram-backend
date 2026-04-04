@@ -22,20 +22,30 @@ const storage = multer.diskStorage({
   },
 });
 
+const allowedImageTypes = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+];
+
+const allowedAudioTypes = [
+  "audio/webm",
+  "audio/ogg",
+  "audio/mpeg",
+  "audio/mp3",
+  "audio/mp4",
+  "audio/wav",
+  "audio/x-wav",
+];
+
 // File filter (images)
 const fileFilter = (
   req: Request,
   file: Express.Multer.File,
   cb: FileFilterCallback,
 ) => {
-  const allowedImageTypes = [
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-  ];
-
   if (allowedImageTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -49,15 +59,6 @@ const audioFileFilter = (
   file: Express.Multer.File,
   cb: FileFilterCallback,
 ) => {
-  const allowedAudioTypes = [
-    "audio/webm",
-    "audio/ogg",
-    "audio/mpeg",
-    "audio/mp3",
-    "audio/mp4",
-    "audio/wav",
-    "audio/x-wav",
-  ];
   const isWebm = file.mimetype.startsWith("audio/webm");
   const isOgg = file.mimetype.startsWith("audio/ogg");
 
@@ -65,6 +66,28 @@ const audioFileFilter = (
     cb(null, true);
   } else {
     cb(new Error("Only audio files are allowed (webm, ogg, mp3, mp4, wav)"));
+  }
+};
+
+// File filter (images + audio)
+const mediaFileFilter = (
+  req: Request,
+  file: Express.Multer.File,
+  cb: FileFilterCallback,
+) => {
+  const isImage = allowedImageTypes.includes(file.mimetype);
+  const isWebm = file.mimetype.startsWith("audio/webm");
+  const isOgg = file.mimetype.startsWith("audio/ogg");
+  const isAudio = allowedAudioTypes.includes(file.mimetype) || isWebm || isOgg;
+
+  if (isImage || isAudio) {
+    cb(null, true);
+  } else {
+    cb(
+      new Error(
+        "Only image or audio files are allowed (jpeg, jpg, png, gif, webp, webm, ogg, mp3, mp4, wav)",
+      ),
+    );
   }
 };
 
@@ -85,7 +108,19 @@ const uploadAudio = multer({
   fileFilter: audioFileFilter,
 });
 
+const uploadMedia = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+  fileFilter: mediaFileFilter,
+});
+
 // Export (ESM style)
 export const uploadSingle = upload.single("image");
 export const uploadMultiple = upload.array("images", 3);
 export const uploadSingleAudio = uploadAudio.single("audio");
+export const uploadPostMedia = uploadMedia.fields([
+  { name: "images", maxCount: 3 },
+  { name: "audio", maxCount: 1 },
+]);

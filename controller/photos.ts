@@ -23,19 +23,22 @@ export const uploadPhoto = async (
         .status(400)
         .json({ success: false, message: "No image file uploaded" });
     }
-    let photoUrl: string[] = (req.files as Express.Multer.File[])
+    const filesArray: Express.Multer.File[] = Array.isArray(req.files)
+      ? (req.files as Express.Multer.File[])
+      : Object.values(req.files as Record<string, Express.Multer.File[]>).flat();
+    let photoUrl: string[] = filesArray
       .filter((f) => f.mimetype.startsWith("image/"))
       .map((y) => `/uploads/${y.filename}`);
-    if (photoUrl.length < 0) {
+    if (photoUrl.length <= 0) {
       return res
         .status(400)
         .json({ success: false, message: "no photo file uploaded " });
     }
     photoUpload.post = photoUrl;
-    let audioUrl: string[] = (req.files as Express.Multer.File[])
+    let audioUrl: string[] = filesArray
       .filter((y) => y.mimetype.startsWith("audio/"))
       .map((x) => `/uploads/${x.filename}`);
-    if (audioUrl.length == 0) {
+    if (audioUrl.length > 0) {
       photoUpload.descAudio = audioUrl[0];
     }
     let upload = await PhotoClass.uploadPhoto(photoUpload);

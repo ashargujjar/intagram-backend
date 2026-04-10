@@ -1,6 +1,7 @@
 ﻿{
   "watch": ["**/*.ts"],
   "ignore": ["dist", "node_modules"],
+  "legacyWatch": true,
   "ext": "ts",
   "exec": "node -r ts-node/register ./app.ts"
 }

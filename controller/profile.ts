@@ -6,19 +6,29 @@ import { unlink } from "node:fs/promises";
 import path from "node:path";
 // ---------------- get Bio --------
 export const getBio = async (req: AuthRequest, res: Response<ApiResponse>) => {
-  if (!req.user?.username) {
-    return res.status(400).json({
-      success: false,
-      message: "Username is required",
-    });
-  }
-
   try {
-    const bio = await ProfileClass.getBioByUsername(req.user?.username);
+    const username = req.params.username
+      ? String(req.params.username)
+      : req.user?.username;
+    if (!username) {
+      return res.status(400).json({
+        success: false,
+        message: "Username required",
+      });
+    }
+
+    const bio = await ProfileClass.getBioByUsername(username);
     if (bio === null || bio === undefined) {
       return res.status(404).json({
         success: false,
         message: "Bio not found for this user",
+      });
+    }
+    if (!req.user?.username) {
+      return res.status(200).json({
+        success: true,
+        message: "Profile loaded successfully",
+        data: { bio },
       });
     }
     let userbio = {

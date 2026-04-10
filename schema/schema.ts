@@ -56,6 +56,9 @@ const profileSchema = new mongoose.Schema({
   private: { type: Boolean, default: false },
   followers: { type: Number, default: 0 },
   followings: { type: Number, default: 0 },
+  followed: { type: [String], default: [] },
+  requested: { type: [String], defailt: [] },
+  followdBy: { type: [String], default: [] },
   posts: { type: Number, default: 0 },
 });
 const replySchema = new mongoose.Schema(

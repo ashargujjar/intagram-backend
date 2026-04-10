@@ -1,6 +1,7 @@
 import express from "express";
 import {
   login,
+  SearchUser,
   sendVerificationMail,
   signup,
   updatePassword,
@@ -21,7 +22,13 @@ import {
   uploadPostMedia,
 } from "../middleware/multerConfig";
 import { checkValidUser } from "../util/functions";
-import { getPhotos, uploadPhoto } from "../controller/photos";
+import {
+  disLike,
+  deletePost,
+  getPhotos,
+  likePost,
+  uploadPhoto,
+} from "../controller/photos";
 import { verify } from "node:crypto";
 import { deleteCommnet, PostComment } from "../controller/comments";
 const user = express.Router();
@@ -52,14 +59,22 @@ user.post(
   uploadSingleAudio,
   PostComment,
 );
+user.post("/user", verifyToken, SearchUser);
+
 // __________ GET ___________
 user.get("/bio", verifyToken, getBio);
+user.get("/bio/:username",verifyToken,getBio)
 user.get("/photo", verifyToken, checkValidUser, getPhotos);
+
 // ____________ PUT ______________
 user.put("/bio", verifyToken, updateBio);
 user.put("/password", verifyToken, checkValidUser, updatePassword);
+user.put("/like", verifyToken, checkValidUser, likePost);
+user.put("/dislike", verifyToken, checkValidUser, disLike);
+
 // ____________ delete ____________
 user.delete("/profilePhoto", verifyToken, deleteProfile);
 user.delete("/profile/intro-audio", verifyToken, deleteIntroAudio);
 user.delete("/comment", verifyToken, checkValidUser, deleteCommnet); // delete commment
+user.delete("/photo/:postId", verifyToken, checkValidUser, deletePost);
 export { user };

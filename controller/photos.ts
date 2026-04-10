@@ -25,7 +25,9 @@ export const uploadPhoto = async (
     }
     const filesArray: Express.Multer.File[] = Array.isArray(req.files)
       ? (req.files as Express.Multer.File[])
-      : Object.values(req.files as Record<string, Express.Multer.File[]>).flat();
+      : Object.values(
+          req.files as Record<string, Express.Multer.File[]>,
+        ).flat();
     let photoUrl: string[] = filesArray
       .filter((f) => f.mimetype.startsWith("image/"))
       .map((y) => `/uploads/${y.filename}`);
@@ -86,5 +88,71 @@ export const getPhotos = async (
       message = "internal server error please try again ";
     }
     return res.status(400).json({ success: false, message: message });
+  }
+};
+export const likePost = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  try {
+    const { postId } = req.body;
+    const userId = req.user!.id;
+    if (!postId) throw new Error("postId is required");
+    const post = await PhotoClass.Likepost(postId, userId);
+    if (post) {
+      return res
+        .status(200)
+        .json({ success: true, message: "post liked", data: post });
+    }
+    throw new Error("error deleting the post");
+  } catch (err: any) {
+    if (err instanceof Error) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+  }
+};
+export const disLike = async (req: AuthRequest, res: Response<ApiResponse>) => {
+  try {
+    const { postId } = req.body;
+    const userId = req.user!.id;
+    if (!postId) throw new Error("postId is required");
+    const post = await PhotoClass.disLike(postId, userId);
+    if (post) {
+      return res
+        .status(200)
+        .json({ success: true, message: "post liked", data: post });
+    }
+    throw new Error("error deleting the post");
+  } catch (err: any) {
+    if (err instanceof Error) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+  }
+};
+
+export const deletePost = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  try {
+    const postId = req.params.postId || req.body?.postId;
+    const userId = req.user?.id;
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "invalid token. user not found" });
+    }
+    if (!postId) throw new Error("postId is required");
+
+    const deleted = await PhotoClass.deletePost(postId, userId);
+    return res.status(200).json({
+      success: true,
+      message: "post deleted successfully",
+      data: deleted,
+    });
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error ? err.message : "internal server error";
+    return res.status(400).json({ success: false, message });
   }
 };

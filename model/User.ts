@@ -1,5 +1,5 @@
 import { IUser } from "../types/Types";
-import { User } from "../schema/schema";
+import { Profile, User } from "../schema/schema";
 import bcrypt from "bcrypt";
 class UserClass {
   username: string;
@@ -29,6 +29,45 @@ class UserClass {
   static async GetUserByUsername(username: string) {
     const user = await User.findOne({ username: username });
     return user;
+  }
+  static async SearchUser(username: string) {
+    if (!username || typeof username !== "string") {
+      return [];
+    }
+    const term = username.trim();
+    if (!term) {
+      return [];
+    }
+    const safe = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const users = await User.find({
+      username: { $regex: safe, $options: "i" },
+    })
+      .select("_id username")
+      .limit(10)
+      .lean();
+    if (users.length === 0) {
+      return [];
+    }
+    const userIds = users.map((user) => user._id);
+    const profiles = await Profile.find({ userId: { $in: userIds } })
+      .select("userId name profilePhoto private followers followings posts")
+      .lean();
+    const profileMap = new Map(
+      profiles.map((profile) => [String(profile.userId), profile]),
+    );
+    return users.map((user) => {
+      const profile = profileMap.get(String(user._id));
+      return {
+        id: user._id.toString(),
+        username: user.username,
+        name: profile?.name ?? "",
+        profilePhoto: profile?.profilePhoto ?? "",
+        private: profile?.private ?? false,
+        followers: profile?.followers ?? 0,
+        followings: profile?.followings ?? 0,
+        posts: profile?.posts ?? 0,
+      };
+    });
   }
 }
 

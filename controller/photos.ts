@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthRequest } from "../middleware/verifyToken";
 import { ApiResponse, PhothoInterface } from "../types/Types";
 import { PhotoClass } from "../model/Photho";
+import { Profile, User } from "../schema/schema";
 
 export const uploadPhoto = async (
   req: AuthRequest,
@@ -88,6 +89,63 @@ export const getPhotos = async (
       message = "internal server error please try again ";
     }
     return res.status(400).json({ success: false, message: message });
+  }
+};
+
+export const getPhotosByUsername = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  try {
+    const currentUserId = req.user?.id;
+    const username = req.params.username;
+    if (!currentUserId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "invalid token. user not found" });
+    }
+    if (!username) {
+      return res
+        .status(400)
+        .json({ success: false, message: "username is required" });
+    }
+
+    const targetUser = await User.findOne({ username });
+    if (!targetUser) {
+      return res
+        .status(404)
+        .json({ success: false, message: "user not found" });
+    }
+
+    const currentId = String(currentUserId);
+    const targetId = String(targetUser._id);
+    if (currentId !== targetId) {
+      const targetProfile = await Profile.findOne({ userId: targetId })
+        .select("private followdBy")
+        .lean();
+      if (targetProfile?.private) {
+        const followers = Array.isArray(targetProfile.followdBy)
+          ? targetProfile.followdBy
+          : [];
+        if (!followers.includes(currentId)) {
+          return res.status(403).json({
+            success: false,
+            message: "This account is private",
+          });
+        }
+      }
+    }
+
+    const photos = await PhotoClass.getPhotos(targetId);
+    return res.status(200).json({
+      success: true,
+      message: "photos fetched successfully",
+      data: { photos: photos ?? [] },
+    });
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error ? err.message : "internal server error please try again";
+    return res.status(400).json({ success: false, message });
   }
 };
 export const likePost = async (

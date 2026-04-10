@@ -25,6 +25,7 @@ import { checkValidUser } from "../util/functions";
 import {
   disLike,
   deletePost,
+  getPhotosByUsername,
   getPhotos,
   likePost,
   uploadPhoto,
@@ -72,6 +73,7 @@ user.post("/user", verifyToken, SearchUser);
 user.get("/bio", verifyToken, getBio);
 user.get("/bio/:username",verifyToken,getBio)
 user.get("/photo", verifyToken, checkValidUser, getPhotos);
+user.get("/photo/:username", verifyToken, checkValidUser, getPhotosByUsername);
 
 // ____________ PUT ______________
 user.put("/bio", verifyToken, updateBio);

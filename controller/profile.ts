@@ -4,6 +4,7 @@ import { ProfileClass } from "../model/Profile";
 import { AuthRequest } from "../middleware/verifyToken";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
+import { User } from "../schema/schema";
 // ---------------- get Bio --------
 export const getBio = async (req: AuthRequest, res: Response<ApiResponse>) => {
   try {
@@ -17,6 +18,14 @@ export const getBio = async (req: AuthRequest, res: Response<ApiResponse>) => {
       });
     }
 
+    const targetUser = await User.findOne({ username });
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
     const bio = await ProfileClass.getBioByUsername(username);
     if (bio === null || bio === undefined) {
       return res.status(404).json({
@@ -24,22 +33,32 @@ export const getBio = async (req: AuthRequest, res: Response<ApiResponse>) => {
         message: "Bio not found for this user",
       });
     }
-    if (!req.user?.username) {
-      return res.status(200).json({
-        success: true,
-        message: "Profile loaded successfully",
-        data: { bio },
-      });
-    }
-    let userbio = {
+
+    const currentUserId = req.user?.id ? String(req.user.id) : "";
+    const isCurrentUser = req.user?.username === username;
+    const requestedList = Array.isArray(bio.requested) ? bio.requested : [];
+    const followdByList = Array.isArray(bio.followdBy) ? bio.followdBy : [];
+    const isFollowing = currentUserId
+      ? followdByList.includes(currentUserId)
+      : false;
+    const relation = {
+      isCurrentUser,
+      isFollowing,
+      isRequested:
+        !isFollowing && currentUserId
+          ? requestedList.includes(currentUserId)
+          : false,
+    };
+
+    const userbio = {
       ...bio,
-      username: req.user?.username,
-      email: req.user?.email,
+      username: targetUser.username,
+      email: isCurrentUser ? req.user?.email : "",
     };
     return res.status(200).json({
       success: true,
       message: "Profile loaded successfully",
-      data: { userbio },
+      data: { userbio, relation },
     });
   } catch (error) {
     const message =

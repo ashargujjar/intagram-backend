@@ -29,6 +29,13 @@ import {
   likePost,
   uploadPhoto,
 } from "../controller/photos";
+import {
+  ConfirmFollowRequest,
+  FollowUser,
+  GetFollowRequests,
+  RejectFollowRequest,
+  UnfollowUser,
+} from "../controller/follow";
 import { verify } from "node:crypto";
 import { deleteCommnet, PostComment } from "../controller/comments";
 const user = express.Router();
@@ -71,6 +78,21 @@ user.put("/bio", verifyToken, updateBio);
 user.put("/password", verifyToken, checkValidUser, updatePassword);
 user.put("/like", verifyToken, checkValidUser, likePost);
 user.put("/dislike", verifyToken, checkValidUser, disLike);
+user.post("/follow/:username", verifyToken, checkValidUser, FollowUser);
+user.delete("/follow/:username", verifyToken, checkValidUser, UnfollowUser);
+user.get("/follow/requests", verifyToken, checkValidUser, GetFollowRequests);
+user.post(
+  "/follow/requests/:userId/confirm",
+  verifyToken,
+  checkValidUser,
+  ConfirmFollowRequest,
+);
+user.post(
+  "/follow/requests/:userId/reject",
+  verifyToken,
+  checkValidUser,
+  RejectFollowRequest,
+);
 
 // ____________ delete ____________
 user.delete("/profilePhoto", verifyToken, deleteProfile);

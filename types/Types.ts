@@ -31,6 +31,10 @@ export interface Profileprop {
   followers?: number;
   following?: number;
   posts?: number;
+  followed?: string[];
+  requested?: string[];
+  followdBy?: string[];
+  followings?: number;
 }
 // photho upload
 export interface PhothoInterface {

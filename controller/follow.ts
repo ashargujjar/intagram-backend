@@ -238,6 +238,93 @@ export const UnfollowUser = async (
   }
 };
 
+export const RemoveFollower = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  try {
+    const currentUserId = req.user?.id;
+    const targetValue = req.params.userId || req.body?.userId;
+    if (!currentUserId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "invalid token. user not found" });
+    }
+    if (!targetValue) {
+      return res
+        .status(400)
+        .json({ success: false, message: "userId is required" });
+    }
+
+    const targetUser = await resolveTargetUser(targetValue);
+    if (!targetUser) {
+      return res
+        .status(404)
+        .json({ success: false, message: "user not found" });
+    }
+
+    const currentId = String(currentUserId);
+    const targetId = String(targetUser._id);
+    if (currentId === targetId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "invalid request" });
+    }
+
+    const [currentProfile, targetProfile] = await Promise.all([
+      Profile.findOne({ userId: currentId }),
+      Profile.findOne({ userId: targetId }),
+    ]);
+    if (!currentProfile || !targetProfile) {
+      return res
+        .status(404)
+        .json({ success: false, message: "profile not found" });
+    }
+
+    const followerList = Array.isArray(currentProfile.followdBy)
+      ? currentProfile.followdBy
+      : [];
+    const targetFollowedList = Array.isArray(targetProfile.followed)
+      ? targetProfile.followed
+      : [];
+
+    const isFollower = followerList.includes(targetId);
+    const isFollowingCurrent = targetFollowedList.includes(currentId);
+
+    if (!isFollower && !isFollowingCurrent) {
+      return res.status(200).json({
+        success: true,
+        message: "no action",
+      });
+    }
+
+    await Promise.all([
+      Profile.updateOne(
+        { userId: currentId },
+        isFollower
+          ? { $pull: { followdBy: targetId }, $inc: { followers: -1 } }
+          : { $pull: { followdBy: targetId } },
+      ),
+      Profile.updateOne(
+        { userId: targetId },
+        isFollowingCurrent
+          ? { $pull: { followed: currentId }, $inc: { followings: -1 } }
+          : { $pull: { followed: currentId } },
+      ),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: "follower removed",
+      data: { id: targetId },
+    });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "internal server error";
+    return res.status(400).json({ success: false, message });
+  }
+};
+
 export const GetFollowRequests = async (
   req: AuthRequest,
   res: Response<ApiResponse>,

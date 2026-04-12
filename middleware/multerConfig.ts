@@ -118,9 +118,8 @@ const uploadMedia = multer({
 
 // Export (ESM style)
 export const uploadSingle = upload.single("image");
-export const uploadMultiple = upload.array("images", 3);
 export const uploadSingleAudio = uploadAudio.single("audio");
 export const uploadPostMedia = uploadMedia.fields([
-  { name: "images", maxCount: 3 },
+  { name: "image", maxCount: 1 },
   { name: "audio", maxCount: 1 },
 ]);

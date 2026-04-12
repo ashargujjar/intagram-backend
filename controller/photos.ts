@@ -19,30 +19,23 @@ export const uploadPhoto = async (
     if (text) {
       photoUpload.caption = text;
     }
-    if (!req.files) {
+    const files =
+      req.files && !Array.isArray(req.files)
+        ? (req.files as Record<string, Express.Multer.File[]>)
+        : undefined;
+    const imageFile = files?.image?.[0] ?? (req as any).file;
+    const audioFile = files?.audio?.[0];
+    if (!imageFile) {
       return res
         .status(400)
         .json({ success: false, message: "No image file uploaded" });
     }
-    const filesArray: Express.Multer.File[] = Array.isArray(req.files)
-      ? (req.files as Express.Multer.File[])
-      : Object.values(
-          req.files as Record<string, Express.Multer.File[]>,
-        ).flat();
-    let photoUrl: string[] = filesArray
-      .filter((f) => f.mimetype.startsWith("image/"))
-      .map((y) => `/uploads/${y.filename}`);
-    if (photoUrl.length <= 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "no photo file uploaded " });
+    if (!imageFile.mimetype.startsWith("image/")) {
+      throw new Error("Only images are allowed");
     }
-    photoUpload.post = photoUrl;
-    let audioUrl: string[] = filesArray
-      .filter((y) => y.mimetype.startsWith("audio/"))
-      .map((x) => `/uploads/${x.filename}`);
-    if (audioUrl.length > 0) {
-      photoUpload.descAudio = audioUrl[0];
+    photoUpload.post = [`/uploads/${imageFile.filename}`];
+    if (audioFile) {
+      photoUpload.descAudio = `/uploads/${audioFile.filename}`;
     }
     let upload = await PhotoClass.uploadPhoto(photoUpload);
     if (upload) {
@@ -144,7 +137,9 @@ export const getPhotosByUsername = async (
     });
   } catch (err: unknown) {
     const message =
-      err instanceof Error ? err.message : "internal server error please try again";
+      err instanceof Error
+        ? err.message
+        : "internal server error please try again";
     return res.status(400).json({ success: false, message });
   }
 };
@@ -209,6 +204,60 @@ export const deletePost = async (
       data: deleted,
     });
   } catch (err: unknown) {
+    const message =
+      err instanceof Error ? err.message : "internal server error";
+    return res.status(400).json({ success: false, message });
+  }
+};
+export const getFollowingsPost = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "invalid token. user not found" });
+    }
+    const posts = await PhotoClass.getFollowingsPost(String(userId));
+    const list = Array.isArray(posts) ? posts : [];
+    const currentUserId = String(userId);
+    const data = list.map((post: any) => {
+      const owner = post.userId;
+      const ownerId = String(post.userId || "");
+      const likedByList = Array.isArray(post.likedBy)
+        ? post.likedBy.map((id: any) => String(id))
+        : [];
+      const profile = owner?.profile ?? null;
+      return {
+        _id: String(post._id),
+        userId: ownerId,
+        post: post.post,
+        descAudio: post.descAudio ?? "",
+        caption: post.caption ?? "",
+        likesCount: post.likesCount,
+        commentsCount: post.commentsCount,
+        likedBy: likedByList,
+        isLiked: likedByList.includes(currentUserId),
+        user: {
+          id: ownerId,
+          username: owner?.username ?? "",
+          name: profile?.name ?? "",
+          profilePhoto: profile?.profilePhoto ?? "",
+        },
+      };
+    });
+    const message =
+      data.length === 0
+        ? "no lattest post in feed follow more to get"
+        : "Post data is fetched";
+    return res.status(200).json({
+      success: true,
+      message,
+      data,
+    });
+  } catch (err: any) {
     const message =
       err instanceof Error ? err.message : "internal server error";
     return res.status(400).json({ success: false, message });

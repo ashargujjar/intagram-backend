@@ -61,6 +61,13 @@ const profileSchema = new mongoose.Schema({
   followdBy: { type: [String], default: [] },
   posts: { type: Number, default: 0 },
 });
+
+userschema.virtual("profile", {
+  ref: "Profile",
+  localField: "_id",
+  foreignField: "userId",
+  justOne: true,
+});
 const replySchema = new mongoose.Schema(
   {
     userId: {
@@ -149,6 +156,8 @@ const notificationSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
+notificationSchema.index({ userId: 1 });
+
 export const Posts = mongoose.model("Post", postSchema);
 export const Notifications = mongoose.model("Notification", notificationSchema);
 export const Otp = mongoose.model("Otp", otpSchema);

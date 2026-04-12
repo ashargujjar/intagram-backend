@@ -1,5 +1,5 @@
 import { isValidObjectId } from "mongoose";
-import { Posts, Profile } from "../schema/schema";
+import { Notifications, Posts, Profile } from "../schema/schema";
 import { PhothoInterface } from "../types/Types";
 import fs from "node:fs";
 import path from "node:path";
@@ -51,6 +51,16 @@ class PhotoClass {
       },
       { new: true },
     ).populate("comments.userId", "username profilePhoto");
+    if (!post) {
+      throw new Error("error posting the comment");
+    }
+    const notification = await Notifications.create({
+      userId: post?.userId,
+      fromUser: userId,
+      postId: postId,
+      type: "comment",
+      message: "Commented on your Post",
+    });
     return post;
   }
   static async delteComment(commentId: string, postId: string, userId: any) {
@@ -86,6 +96,14 @@ class PhotoClass {
   static async Likepost(postId: string, userId: any) {
     const post = await Posts.findById({ _id: postId });
     if (!post) throw new Error("Post not found!!");
+    const notification = await Notifications.create({
+      userId: post.userId,
+      fromUser: userId,
+      postId: postId,
+      type: "like",
+      message: "Liked your Post",
+    });
+
     const isLiked = post.likedBy.find((p) => p == userId);
     if (isLiked) throw new Error("post is already Liked!");
     const like = await Posts.findByIdAndUpdate(
@@ -154,6 +172,39 @@ class PhotoClass {
     await Profile.findOneAndUpdate({ userId }, { $set: { posts: count } });
 
     return post;
+  }
+  // --------- get Followers latest Post ---------
+  static async getFollowingsPost(userId: string) {
+    const followings = await Profile.findOne({ userId: userId })
+      .select("followed")
+      .lean();
+    const followedIds = Array.isArray(followings?.followed)
+      ? followings.followed
+      : [];
+    if (followedIds.length === 0) {
+      return [];
+    }
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const posts = await Posts.find({
+      userId: { $in: followedIds },
+      createdAt: { $gte: oneWeekAgo },
+    })
+      .select(
+        "userId post descAudio caption likesCount commentsCount likedBy",
+      )
+      .populate({
+        path: "userId",
+        select: "username",
+        populate: {
+          path: "profile",
+          select: "name profilePhoto",
+        },
+      })
+      .sort({ createdAt: -1 })
+      .exec();
+    return posts;
   }
 }
 export { PhotoClass };

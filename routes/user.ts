@@ -29,6 +29,7 @@ import {
   getPhotos,
   likePost,
   uploadPhoto,
+  getFollowingsPost,
 } from "../controller/photos";
 import {
   ConfirmFollowRequest,
@@ -36,9 +37,11 @@ import {
   getFollowers,
   getFollowings,
   GetFollowRequests,
+  RemoveFollower,
   RejectFollowRequest,
   UnfollowUser,
 } from "../controller/follow";
+import { getNotifications } from "../controller/notification";
 import { verify } from "node:crypto";
 import { deleteCommnet, PostComment } from "../controller/comments";
 const user = express.Router();
@@ -75,6 +78,7 @@ user.post("/user", verifyToken, SearchUser);
 user.get("/bio", verifyToken, getBio);
 user.get("/bio/:username", verifyToken, getBio);
 user.get("/photo", verifyToken, checkValidUser, getPhotos);
+user.get("/notifications", verifyToken, checkValidUser, getNotifications);
 user.get("/follow/requests", verifyToken, checkValidUser, GetFollowRequests);
 user.get("/photo/:username", verifyToken, checkValidUser, getPhotosByUsername);
 user.get(
@@ -89,6 +93,9 @@ user.get(
   checkValidUser,
   getFollowings,
 );
+// --- get the followings post ------
+user.get("/post", verifyToken, checkValidUser, getFollowingsPost);
+user.get("/get", verifyToken, checkValidUser, getFollowingsPost);
 // ____________ PUT ______________
 user.put("/bio", verifyToken, updateBio);
 user.put("/password", verifyToken, checkValidUser, updatePassword);
@@ -96,6 +103,7 @@ user.put("/like", verifyToken, checkValidUser, likePost);
 user.put("/dislike", verifyToken, checkValidUser, disLike);
 user.post("/follow/:username", verifyToken, checkValidUser, FollowUser);
 user.delete("/follow/:username", verifyToken, checkValidUser, UnfollowUser);
+user.delete("/followers/:userId", verifyToken, checkValidUser, RemoveFollower);
 user.post(
   "/follow/requests/:userId/confirm",
   verifyToken,

@@ -30,23 +30,25 @@ class UserClass {
     const user = await User.findOne({ username: username });
     return user;
   }
-  static async SearchUser(username: string) {
-    if (!username || typeof username !== "string") {
-      return [];
-    }
-    const term = username.trim();
-    if (!term) {
-      return [];
-    }
-    const safe = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  static async SearchUser(username: string, currentUserId?: string) {
     const users = await User.find({
-      username: { $regex: safe, $options: "i" },
+      username: { $regex: username, $options: "i" },
     })
       .select("_id username")
       .limit(10)
       .lean();
     if (users.length === 0) {
       return [];
+    }
+    let followedSet = new Set<string>();
+    if (currentUserId) {
+      const currentProfile = await Profile.findOne({ userId: currentUserId })
+        .select("followed")
+        .lean();
+      const followed = Array.isArray(currentProfile?.followed)
+        ? currentProfile!.followed
+        : [];
+      followedSet = new Set(followed.map((id) => String(id)));
     }
     const userIds = users.map((user) => user._id);
     const profiles = await Profile.find({ userId: { $in: userIds } })
@@ -66,8 +68,53 @@ class UserClass {
         followers: profile?.followers ?? 0,
         followings: profile?.followings ?? 0,
         posts: profile?.posts ?? 0,
+        isFollowing: followedSet.has(String(user._id)),
       };
     });
+  }
+  static async getFollowersFollowings(
+    userId: string,
+    requestedUserId: string,
+    requestFor: "followed" | "followdBy",
+  ) {
+    const user = await Profile.findOne({ userId: requestedUserId }).lean();
+    const currUser = await Profile.findOne({ userId });
+    if (!user || !currUser) {
+      throw new Error("user not found");
+    }
+    type ProfileType = typeof user;
+    const requested: string[] = user[requestFor];
+    const profiles: ProfileType[] = await Profile.find(
+      {
+        userId: { $in: requested },
+      },
+      {
+        userId: 1,
+        followdBy: 1,
+        followed: 1,
+        name: 1,
+        private: 1,
+        followers: 1,
+        profilePhoto: 1,
+        url: 1,
+      },
+    ).populate("userId", "username");
+    type DataType = {
+      profiles: ProfileType[];
+      currUser: any;
+    };
+    let data: DataType = {
+      profiles: [],
+      currUser: null,
+    };
+    data = { profiles, currUser };
+    return data;
+  }
+  static async getFollowers(userId: string, requestedUserId: string) {
+    return this.getFollowersFollowings(userId, requestedUserId, "followdBy");
+  }
+  static async getFollowings(userId: string, requestedUserId: string) {
+    return this.getFollowersFollowings(userId, requestedUserId, "followed");
   }
 }
 

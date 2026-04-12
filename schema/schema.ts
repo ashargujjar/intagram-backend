@@ -110,7 +110,47 @@ const postSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+const notificationSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+
+  type: {
+    type: String,
+    enum: ["like", "comment", "follow", "mention"],
+    required: true,
+  },
+
+  fromUser: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+
+  postId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Post",
+    default: null,
+  },
+
+  message: {
+    type: String,
+  },
+
+  read: {
+    type: Boolean,
+    default: false,
+  },
+
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
 export const Posts = mongoose.model("Post", postSchema);
+export const Notifications = mongoose.model("Notification", notificationSchema);
 export const Otp = mongoose.model("Otp", otpSchema);
 export const User = mongoose.model("User", userschema);
 export const Profile = mongoose.model("Profile", profileSchema);

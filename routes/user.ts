@@ -33,6 +33,8 @@ import {
 import {
   ConfirmFollowRequest,
   FollowUser,
+  getFollowers,
+  getFollowings,
   GetFollowRequests,
   RejectFollowRequest,
   UnfollowUser,
@@ -71,10 +73,22 @@ user.post("/user", verifyToken, SearchUser);
 
 // __________ GET ___________
 user.get("/bio", verifyToken, getBio);
-user.get("/bio/:username",verifyToken,getBio)
+user.get("/bio/:username", verifyToken, getBio);
 user.get("/photo", verifyToken, checkValidUser, getPhotos);
+user.get("/follow/requests", verifyToken, checkValidUser, GetFollowRequests);
 user.get("/photo/:username", verifyToken, checkValidUser, getPhotosByUsername);
-
+user.get(
+  "/followers/:requestedUserId",
+  verifyToken,
+  checkValidUser,
+  getFollowers,
+);
+user.get(
+  "/followings/:requestedUserId",
+  verifyToken,
+  checkValidUser,
+  getFollowings,
+);
 // ____________ PUT ______________
 user.put("/bio", verifyToken, updateBio);
 user.put("/password", verifyToken, checkValidUser, updatePassword);
@@ -82,7 +96,6 @@ user.put("/like", verifyToken, checkValidUser, likePost);
 user.put("/dislike", verifyToken, checkValidUser, disLike);
 user.post("/follow/:username", verifyToken, checkValidUser, FollowUser);
 user.delete("/follow/:username", verifyToken, checkValidUser, UnfollowUser);
-user.get("/follow/requests", verifyToken, checkValidUser, GetFollowRequests);
 user.post(
   "/follow/requests/:userId/confirm",
   verifyToken,

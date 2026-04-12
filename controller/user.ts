@@ -515,14 +515,15 @@ export const uploadProfile = async (
 export const SearchUser = async (
   req: AuthRequest,
   res: Response<ApiResponse>,
-) => {
-  try {
-    const { username } = req.body || {};
-    const users = await UserClass.SearchUser(username);
-    return res.status(200).json({
-      success: true,
-      message: users.length > 0 ? "User found" : "No users found",
-      data: { users },
+  ) => {
+    try {
+      const { username } = req.body || {};
+      const currentUserId = req.user?.id;
+      const users = await UserClass.SearchUser(username, currentUserId);
+      return res.status(200).json({
+        success: true,
+        message: users.length > 0 ? "User found" : "No users found",
+        data: { users },
     });
   } catch (error: any) {
     return res

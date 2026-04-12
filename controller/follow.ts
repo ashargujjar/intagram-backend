@@ -3,6 +3,7 @@ import { isValidObjectId } from "mongoose";
 import { AuthRequest } from "../middleware/verifyToken";
 import { ApiResponse } from "../types/Types";
 import { Profile, User } from "../schema/schema";
+import { UserClass } from "../model/User";
 
 const resolveTargetUser = async (value: string) => {
   if (isValidObjectId(value)) {
@@ -416,5 +417,52 @@ export const RejectFollowRequest = async (
     const message =
       error instanceof Error ? error.message : "internal server error";
     return res.status(400).json({ success: false, message });
+  }
+};
+
+export const getFollowings = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  try {
+    const userId = req.user?.id;
+    const requestedUserId = String(req.params.requestedUserId);
+
+    const user = await UserClass.getFollowings(userId!, requestedUserId);
+    return res
+      .status(200)
+      .json({ success: true, message: "followers get", data: user });
+  } catch (error: any) {
+    if (error instanceof Error) {
+      return res.status(404).json({ success: false, message: error.message });
+    } else {
+      return res
+        .status(404)
+        .json({ success: false, message: "internal sevrer error" });
+    }
+  }
+};
+export const getFollowers = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  try {
+    const userId = req.user?.id;
+    const requestedUserId: string = String(req.params.requestedUserId);
+    if (!requestedUserId) {
+      throw new Error("userId is required");
+    }
+    const user = await UserClass.getFollowers(userId!, requestedUserId!);
+    return res
+      .status(200)
+      .json({ success: true, message: "followers get", data: user });
+  } catch (error: any) {
+    if (error instanceof Error) {
+      return res.status(404).json({ success: false, message: error.message });
+    } else {
+      return res
+        .status(404)
+        .json({ success: false, message: "internal sevrer error" });
+    }
   }
 };

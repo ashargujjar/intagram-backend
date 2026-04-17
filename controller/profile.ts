@@ -5,6 +5,26 @@ import { AuthRequest } from "../middleware/verifyToken";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { User } from "../schema/schema";
+import cloudinary from "../util/cloudinary";
+
+const deleteLocalFile = async (url?: string) => {
+  if (!url) return;
+  const pathname =
+    url.startsWith("http://") || url.startsWith("https://")
+      ? new URL(url).pathname
+      : url;
+  const relativePath = pathname.replace(/^\/+/, "");
+  const filePath = path.resolve(process.cwd(), relativePath);
+
+  try {
+    await unlink(filePath);
+  } catch (fileError: any) {
+    if (fileError.code !== "ENOENT") {
+      throw new Error("Error deleting file: " + fileError.message);
+    }
+    console.log("File not found, continuing...");
+  }
+};
 // ---------------- get Bio --------
 export const getBio = async (req: AuthRequest, res: Response<ApiResponse>) => {
   try {
@@ -179,21 +199,7 @@ export const deleteProfile = async (
       });
     }
 
-    const pathname =
-      url.startsWith("http://") || url.startsWith("https://")
-        ? new URL(url).pathname
-        : url;
-    const relativePath = pathname.replace(/^\/+/, "");
-    const filePath = path.resolve(process.cwd(), relativePath);
-
-    try {
-      await unlink(filePath);
-    } catch (fileError: any) {
-      if (fileError.code !== "ENOENT") {
-        throw new Error("Error deleting file: " + fileError.message);
-      }
-      console.log("File not found, continuing...");
-    }
+    await deleteLocalFile(url);
 
     const updatedProfile = await ProfileClass.updateProfilePhoto(username, "");
     if (!updatedProfile) {
@@ -227,6 +233,7 @@ export const uploadIntroAudio = async (
   req: AuthRequest,
   res: Response<ApiResponse>,
 ) => {
+  const tempFilePath = req.file?.path;
   try {
     if (!req.file) {
       return res
@@ -234,16 +241,20 @@ export const uploadIntroAudio = async (
         .json({ success: false, message: "No audio file uploaded" });
     }
 
-    const audioUrl = `/uploads/${req.file.filename}`;
-
     const existingProfile = await ProfileClass.getBioByUsername(
       req.user!.username,
     );
     const previousUrl = existingProfile?.introAudio;
+    const previousPublicId = existingProfile?.introAudioPublicId;
+    const audioResult = await cloudinary.uploader.upload(req.file.path, {
+      resource_type: "video",
+      folder: "intro-audios",
+    });
 
     const updatedProfile = await ProfileClass.updateIntroAudio(
       req.user!.username,
-      audioUrl,
+      audioResult.secure_url,
+      audioResult.public_id,
     );
     if (!updatedProfile) {
       return res.status(404).json({
@@ -252,22 +263,26 @@ export const uploadIntroAudio = async (
       });
     }
 
-    if (previousUrl && previousUrl.trim() !== "" && previousUrl !== audioUrl) {
-      const pathname =
-        previousUrl.startsWith("http://") || previousUrl.startsWith("https://")
-          ? new URL(previousUrl).pathname
-          : previousUrl;
-      const relativePath = pathname.replace(/^\/+/, "");
-      const filePath = path.resolve(process.cwd(), relativePath);
+    if (
+      previousPublicId &&
+      previousPublicId.trim() !== "" &&
+      previousPublicId !== audioResult.public_id
+    ) {
+      await cloudinary.uploader.destroy(previousPublicId, {
+        resource_type: "video",
+      });
+    } else if (
+      previousUrl &&
+      previousUrl.trim() !== "" &&
+      previousUrl !== audioResult.secure_url
+    ) {
       try {
-        await unlink(filePath);
+        await deleteLocalFile(previousUrl);
       } catch (fileError: any) {
-        if (fileError?.code !== "ENOENT") {
-          console.log(
-            "Error deleting old intro audio:",
-            fileError?.message || fileError,
-          );
-        }
+        console.log(
+          "Error deleting old intro audio:",
+          fileError?.message || fileError,
+        );
       }
     }
 
@@ -287,6 +302,19 @@ export const uploadIntroAudio = async (
       success: false,
       message: "Unable to update intro audio",
     });
+  } finally {
+    if (tempFilePath) {
+      try {
+        await unlink(tempFilePath);
+      } catch (fileError: any) {
+        if (fileError?.code !== "ENOENT") {
+          console.log(
+            "Error deleting temp intro audio:",
+            fileError?.message || fileError,
+          );
+        }
+      }
+    }
   }
 };
 
@@ -314,6 +342,7 @@ export const deleteIntroAudio = async (
     }
 
     const url = profile.introAudio;
+    const publicId = profile.introAudioPublicId;
 
     if (!url || url.trim() === "") {
       return res.status(200).json({
@@ -329,23 +358,15 @@ export const deleteIntroAudio = async (
       });
     }
 
-    const pathname =
-      url.startsWith("http://") || url.startsWith("https://")
-        ? new URL(url).pathname
-        : url;
-    const relativePath = pathname.replace(/^\/+/, "");
-    const filePath = path.resolve(process.cwd(), relativePath);
-
-    try {
-      await unlink(filePath);
-    } catch (fileError: any) {
-      if (fileError.code !== "ENOENT") {
-        throw new Error("Error deleting file: " + fileError.message);
-      }
-      console.log("File not found, continuing...");
+    if (publicId && publicId.trim() !== "") {
+      await cloudinary.uploader.destroy(publicId, {
+        resource_type: "video",
+      });
+    } else {
+      await deleteLocalFile(url);
     }
 
-    const updatedProfile = await ProfileClass.updateIntroAudio(username, "");
+    const updatedProfile = await ProfileClass.updateIntroAudio(username, "", "");
     if (!updatedProfile) {
       return res.status(404).json({
         success: false,

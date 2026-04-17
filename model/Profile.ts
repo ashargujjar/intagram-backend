@@ -102,7 +102,11 @@ class ProfileClass {
     return profile.toObject();
   }
 
-  static async updateIntroAudio(username: string, introAudio: string) {
+  static async updateIntroAudio(
+    username: string,
+    introAudio: string,
+    introAudioPublicId = "",
+  ) {
     const user = await User.findOne({ username });
     if (!user) {
       return null;
@@ -110,7 +114,7 @@ class ProfileClass {
 
     const profile = await Profile.findOneAndUpdate(
       { userId: user._id },
-      { $set: { introAudio } },
+      { $set: { introAudio, introAudioPublicId } },
       { new: true, upsert: true },
     );
 

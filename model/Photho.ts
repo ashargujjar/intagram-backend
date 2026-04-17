@@ -4,6 +4,7 @@ import { PhothoInterface } from "../types/Types";
 import fs from "node:fs";
 import path from "node:path";
 import redisClient from "../util/redis";
+import cloudinary from "../util/cloudinary";
 class PhotoClass {
   private static attachProfilePhoto(user: any) {
     if (!user || typeof user !== "object") return;
@@ -27,12 +28,31 @@ class PhotoClass {
     }
   }
 
+  private static async deleteLocalAsset(url?: string) {
+    if (!url) return;
+    const pathname =
+      url.startsWith("http://") || url.startsWith("https://")
+        ? new URL(url).pathname
+        : url;
+    const relativePath = pathname.replace(/^\/+/, "");
+    const filePath = path.resolve(process.cwd(), relativePath);
+    try {
+      await fs.promises.unlink(filePath);
+    } catch (fileError: any) {
+      if (fileError?.code !== "ENOENT") {
+        throw fileError;
+      }
+    }
+  }
+
   static async uploadPhoto(photo: PhothoInterface) {
     const upload = await Posts.create({
       userId: photo.userId,
       caption: photo.caption,
       descAudio: photo.descAudio,
       post: photo.post,
+      imagePublicId: photo.imagePublicId,
+      audioPublicId: photo.audioPublicId,
     });
     await Profile.findOneAndUpdate(
       { userId: photo.userId },
@@ -119,6 +139,9 @@ class PhotoClass {
       type: "comment",
       message: "Commented on your Post",
     });
+    const redisKey = `user:photos:${post.userId}`;
+    await redisClient.del(redisKey);
+
     return post;
   }
   static async delteComment(commentId: string, postId: string, userId: any) {
@@ -148,6 +171,11 @@ class PhotoClass {
       },
       { new: true },
     );
+    if (!delComment) {
+      throw new Error("error deleting comment");
+    }
+    const redisKey = `user:photos:${delComment.userId}`;
+    await redisClient.del(redisKey);
 
     return delComment;
   }
@@ -172,6 +200,8 @@ class PhotoClass {
       },
       { new: true },
     );
+    const redisKey = `user:photos:${post.userId}`;
+    await redisClient.del(redisKey);
     return like;
   }
   static async disLike(postId: string, userId: any) {
@@ -187,6 +217,8 @@ class PhotoClass {
       },
       { new: true },
     );
+    const redisKey = `user:photos:${post.userId}`;
+    await redisClient.del(redisKey);
     return like;
   }
 
@@ -200,29 +232,20 @@ class PhotoClass {
       throw new Error("Post not found");
     }
 
-    const mediaUrls: string[] = [];
-    if (Array.isArray(post.post)) {
-      mediaUrls.push(...post.post);
-    }
-    if (post.descAudio) {
-      mediaUrls.push(post.descAudio);
+    if (post.imagePublicId) {
+      await cloudinary.uploader.destroy(post.imagePublicId);
+    } else if (Array.isArray(post.post)) {
+      for (const url of post.post) {
+        await PhotoClass.deleteLocalAsset(url);
+      }
     }
 
-    for (const url of mediaUrls) {
-      if (!url) continue;
-      const pathname =
-        url.startsWith("http://") || url.startsWith("https://")
-          ? new URL(url).pathname
-          : url;
-      const relativePath = pathname.replace(/^\/+/, "");
-      const filePath = path.resolve(process.cwd(), relativePath);
-      try {
-        await fs.promises.unlink(filePath);
-      } catch (fileError: any) {
-        if (fileError?.code !== "ENOENT") {
-          throw fileError;
-        }
-      }
+    if (post.audioPublicId) {
+      await cloudinary.uploader.destroy(post.audioPublicId, {
+        resource_type: "video",
+      });
+    } else if (post.descAudio) {
+      await PhotoClass.deleteLocalAsset(post.descAudio);
     }
 
     await Posts.deleteOne({ _id: postId, userId });

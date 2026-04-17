@@ -3,11 +3,30 @@ import { AuthRequest } from "../middleware/verifyToken";
 import { ApiResponse, PhothoInterface } from "../types/Types";
 import { PhotoClass } from "../model/Photho";
 import { Profile, User } from "../schema/schema";
+import cloudinary from "../util/cloudinary";
+import { unlink } from "node:fs/promises";
+
+const deleteTempFile = async (filePath?: string) => {
+  if (!filePath) return;
+  try {
+    await unlink(filePath);
+  } catch (error: any) {
+    if (error?.code !== "ENOENT") {
+      console.log("Error deleting temp upload:", error?.message || error);
+    }
+  }
+};
 
 export const uploadPhoto = async (
   req: AuthRequest,
   res: Response<ApiResponse>,
 ) => {
+  const files = req.files as
+    | Record<string, Express.Multer.File[]>
+    | undefined;
+  const imageFile = files?.image?.[0] || req.file;
+  const audioFile = files?.audio?.[0];
+
   try {
     let photoUpload: PhothoInterface = {
       post: [],
@@ -19,12 +38,6 @@ export const uploadPhoto = async (
     if (text) {
       photoUpload.caption = text;
     }
-    const files =
-      req.files && !Array.isArray(req.files)
-        ? (req.files as Record<string, Express.Multer.File[]>)
-        : undefined;
-    const imageFile = files?.image?.[0] ?? (req as any).file;
-    const audioFile = files?.audio?.[0];
     if (!imageFile) {
       return res
         .status(400)
@@ -33,9 +46,19 @@ export const uploadPhoto = async (
     if (!imageFile.mimetype.startsWith("image/")) {
       throw new Error("Only images are allowed");
     }
-    photoUpload.post = [`/uploads/${imageFile.filename}`];
+    const imgResult = await cloudinary.uploader.upload(imageFile.path, {
+      folder: "posts",
+    });
+    photoUpload.post = [imgResult.secure_url];
+    photoUpload.imagePublicId = imgResult.public_id;
+
     if (audioFile) {
-      photoUpload.descAudio = `/uploads/${audioFile.filename}`;
+      const audioResult = await cloudinary.uploader.upload(audioFile.path, {
+        resource_type: "video", // important for audio
+        folder: "audios",
+      });
+      photoUpload.descAudio = audioResult.secure_url;
+      photoUpload.audioPublicId = audioResult.public_id;
     }
     let upload = await PhotoClass.uploadPhoto(photoUpload);
     if (upload) {
@@ -53,6 +76,9 @@ export const uploadPhoto = async (
       message = "internal server error please try again ";
     }
     return res.status(400).json({ success: false, message: message });
+  } finally {
+    await deleteTempFile(imageFile?.path);
+    await deleteTempFile(audioFile?.path);
   }
 };
 export const getPhotos = async (

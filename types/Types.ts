@@ -26,6 +26,7 @@ export interface Profileprop {
   bio?: string;
   url?: string;
   introAudio?: string;
+  introAudioPublicId?: string;
   profilePhoto?: string;
   private?: boolean;
   followers?: number;
@@ -42,4 +43,6 @@ export interface PhothoInterface {
   caption?: string;
   post: string[];
   descAudio?: string;
+  imagePublicId?: string;
+  audioPublicId?: string;
 }

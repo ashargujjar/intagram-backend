@@ -30,6 +30,7 @@ import {
   likePost,
   uploadPhoto,
   getFollowingsPost,
+  getPhthosForExplore,
 } from "../controller/photos";
 import {
   ConfirmFollowRequest,
@@ -93,6 +94,7 @@ user.get(
   checkValidUser,
   getFollowings,
 );
+user.get("/all/post", verifyToken, getPhthosForExplore);
 // --- get the followings post ------
 user.get("/post", verifyToken, checkValidUser, getFollowingsPost);
 user.get("/get", verifyToken, checkValidUser, getFollowingsPost);

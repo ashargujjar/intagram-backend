@@ -3,7 +3,30 @@ import { Notifications, Posts, Profile } from "../schema/schema";
 import { PhothoInterface } from "../types/Types";
 import fs from "node:fs";
 import path from "node:path";
+import redisClient from "../util/redis";
 class PhotoClass {
+  private static attachProfilePhoto(user: any) {
+    if (!user || typeof user !== "object") return;
+    const profilePhoto = user.profile?.profilePhoto;
+    if (profilePhoto && !user.profilePhoto) {
+      if (typeof user.set === "function") {
+        user.set("profilePhoto", profilePhoto, { strict: false });
+      } else {
+        user.profilePhoto = profilePhoto;
+      }
+    }
+  }
+
+  private static attachProfilePhotos(post: any) {
+    if (!post) return;
+    PhotoClass.attachProfilePhoto(post.userId);
+    if (Array.isArray(post.comments)) {
+      post.comments.forEach((comment: any) => {
+        PhotoClass.attachProfilePhoto(comment.userId);
+      });
+    }
+  }
+
   static async uploadPhoto(photo: PhothoInterface) {
     const upload = await Posts.create({
       userId: photo.userId,
@@ -15,13 +38,43 @@ class PhotoClass {
       { userId: photo.userId },
       { $inc: { posts: 1 } },
     );
+    const redisProfileKey = `user:profile:${photo.userId}`;
+    await redisClient.del(redisProfileKey);
+
+    const redisKey = `user:photos:${photo.userId}`;
+    await redisClient.del(redisKey);
     return upload;
   }
   static async getPhotos(userId: string) {
-    const photos = Posts.find({ userId: userId }).populate(
-      "comments.userId",
-      "username profilePhoto",
-    );
+    const redisKey = `user:photos:${userId}`;
+    const cachedPhotos = await redisClient.hGet(redisKey, "photos");
+    if (cachedPhotos) {
+      console.log("photho chach hit");
+      const photos = JSON.parse(cachedPhotos);
+      photos.forEach((post: any) => PhotoClass.attachProfilePhotos(post));
+      return photos;
+    }
+    console.log("photho server hit");
+
+    const photos = await Posts.find({ userId: userId })
+      .populate({
+        path: "userId",
+        select: "username",
+        populate: { path: "profile", select: "profilePhoto" },
+      })
+      .populate({
+        path: "comments.userId",
+        select: "username",
+        populate: { path: "profile", select: "profilePhoto" },
+      })
+      .exec();
+    await redisClient // redis phothos set
+      .multi()
+      .hSet(redisKey, "photos", JSON.stringify(photos))
+      .expire(redisKey, Number(process.env.CACHE_EXPIRATION_TIME))
+      .exec();
+
+    photos.forEach((post) => PhotoClass.attachProfilePhotos(post));
     return photos;
   }
   static async postComment(
@@ -50,10 +103,15 @@ class PhotoClass {
         },
       },
       { new: true },
-    ).populate("comments.userId", "username profilePhoto");
+    ).populate({
+      path: "comments.userId",
+      select: "username",
+      populate: { path: "profile", select: "profilePhoto" },
+    });
     if (!post) {
       throw new Error("error posting the comment");
     }
+    PhotoClass.attachProfilePhotos(post);
     const notification = await Notifications.create({
       userId: post?.userId,
       fromUser: userId,
@@ -170,7 +228,10 @@ class PhotoClass {
     await Posts.deleteOne({ _id: postId, userId });
     const count = await Posts.countDocuments({ userId });
     await Profile.findOneAndUpdate({ userId }, { $set: { posts: count } });
-
+    const redisProfileKey = `user:profile:${userId}`;
+    await redisClient.del(redisProfileKey);
+    const redisKey = `user:photos:${userId}`;
+    await redisClient.del(redisKey);
     return post;
   }
   // --------- get Followers latest Post ---------
@@ -191,9 +252,7 @@ class PhotoClass {
       userId: { $in: followedIds },
       createdAt: { $gte: oneWeekAgo },
     })
-      .select(
-        "userId post descAudio caption likesCount commentsCount likedBy",
-      )
+      .select("userId post descAudio caption likesCount commentsCount likedBy")
       .populate({
         path: "userId",
         select: "username",
@@ -205,6 +264,32 @@ class PhotoClass {
       .sort({ createdAt: -1 })
       .exec();
     return posts;
+  }
+  static async getPhothosForExplore() {
+    const users = await Profile.find({ private: false }).lean();
+    if (!users) {
+      throw new Error("USers not found");
+    }
+    const userId = users.map((u) => u.userId);
+
+    const phothos = await Posts.find({ userId: { $in: userId } })
+      .populate({
+        path: "userId",
+        select: "username",
+        populate: { path: "profile", select: "profilePhoto" },
+      })
+      .populate({
+        path: "comments.userId",
+        select: "username",
+        populate: { path: "profile", select: "profilePhoto" },
+      })
+      .sort({ createdAt: -1 })
+      .exec();
+    if (!phothos) {
+      return [];
+    }
+    phothos.forEach((post) => PhotoClass.attachProfilePhotos(post));
+    return phothos;
   }
 }
 export { PhotoClass };

@@ -47,7 +47,7 @@ export const signup = async (
     const baseUrl = frontEndUrl.replace(/\/+$/, "");
     const verifyUrl = `${baseUrl}/verify-account/verify?token=${encodeURIComponent(token)}`;
     const html = buildVerificationEmailHtml(username, verifyUrl);
-    await ProfileClass.saveBio(save._id);
+    await ProfileClass.saveBio(save._id, save.username);
     await SendMAil(email, "Verify your Rabta account", html);
 
     return res.status(201).json({
@@ -515,15 +515,15 @@ export const uploadProfile = async (
 export const SearchUser = async (
   req: AuthRequest,
   res: Response<ApiResponse>,
-  ) => {
-    try {
-      const { username } = req.body || {};
-      const currentUserId = req.user?.id;
-      const users = await UserClass.SearchUser(username, currentUserId);
-      return res.status(200).json({
-        success: true,
-        message: users.length > 0 ? "User found" : "No users found",
-        data: { users },
+) => {
+  try {
+    const { username } = req.body || {};
+    const currentUserId = req.user?.id;
+    const users = await UserClass.SearchUser(username, currentUserId);
+    return res.status(200).json({
+      success: true,
+      message: users.length > 0 ? "User found" : "No users found",
+      data: { users },
     });
   } catch (error: any) {
     return res

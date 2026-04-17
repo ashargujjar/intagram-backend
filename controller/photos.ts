@@ -263,3 +263,23 @@ export const getFollowingsPost = async (
     return res.status(400).json({ success: false, message });
   }
 };
+export const getPhthosForExplore = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  try {
+    const posts = await PhotoClass.getPhothosForExplore();
+    if (posts.length < 0) {
+      throw new Error("Nothing to show right now");
+    }
+    return res.status(200).json({
+      success: true,
+      message: "Post fetched successfuly",
+      data: posts,
+    });
+  } catch (error: any) {
+    const message =
+      error instanceof Error ? error.message : "internal server Error";
+    return res.status(400).json({ success: false, message: message });
+  }
+};

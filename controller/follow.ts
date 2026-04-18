@@ -4,12 +4,20 @@ import { AuthRequest } from "../middleware/verifyToken";
 import { ApiResponse } from "../types/Types";
 import { Profile, User } from "../schema/schema";
 import { UserClass } from "../model/User";
+import redisClient from "../util/redis";
 
 const resolveTargetUser = async (value: string) => {
   if (isValidObjectId(value)) {
     return await User.findById(value);
   }
   return await User.findOne({ username: value });
+};
+
+const invalidateProfileCache = async (...userIds: string[]) => {
+  const redisKeys = [...new Set(userIds)].map(
+    (userId) => `user:profile:${userId}`,
+  );
+  await Promise.all(redisKeys.map((redisKey) => redisClient.del(redisKey)));
 };
 
 export const FollowUser = async (
@@ -83,6 +91,7 @@ export const FollowUser = async (
           { userId: targetId },
           { $addToSet: { requested: currentId } },
         );
+        await invalidateProfileCache(targetId);
         isRequested = true;
         didRequest = true;
       }
@@ -101,6 +110,7 @@ export const FollowUser = async (
           },
         ),
       ]);
+      await invalidateProfileCache(currentId, targetId);
       isFollowing = true;
       isRequested = false;
     }
@@ -195,6 +205,7 @@ export const UnfollowUser = async (
         { userId: targetId },
         { $pull: { requested: currentId } },
       );
+      await invalidateProfileCache(targetId);
     }
 
     if (isFollowing) {
@@ -208,6 +219,7 @@ export const UnfollowUser = async (
           { $pull: { followdBy: currentId }, $inc: { followers: -1 } },
         ),
       ]);
+      await invalidateProfileCache(currentId, targetId);
     }
 
     const freshTarget = await Profile.findOne({ userId: targetId }).lean();
@@ -312,6 +324,7 @@ export const RemoveFollower = async (
           : { $pull: { followed: currentId } },
       ),
     ]);
+    await invalidateProfileCache(currentId, targetId);
 
     return res.status(200).json({
       success: true,
@@ -444,6 +457,7 @@ export const ConfirmFollowRequest = async (
         { $addToSet: { followed: currentId }, $inc: { followings: 1 } },
       ),
     ]);
+    await invalidateProfileCache(currentId, requesterId);
 
     return res.status(200).json({
       success: true,
@@ -494,6 +508,7 @@ export const RejectFollowRequest = async (
       { userId: currentId },
       { $pull: { requested: requesterId } },
     );
+    await invalidateProfileCache(currentId);
 
     return res.status(200).json({
       success: true,

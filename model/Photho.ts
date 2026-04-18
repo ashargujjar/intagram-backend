@@ -91,7 +91,7 @@ class PhotoClass {
     await redisClient // redis phothos set
       .multi()
       .hSet(redisKey, "photos", JSON.stringify(photos))
-      .expire(redisKey, Number(process.env.CACHE_EXPIRATION_TIME))
+      .expire(redisKey, Number(process.env.CHACH_EXPIRATION_TIME))
       .exec();
 
     photos.forEach((post) => PhotoClass.attachProfilePhotos(post));
@@ -141,7 +141,8 @@ class PhotoClass {
     });
     const redisKey = `user:photos:${post.userId}`;
     await redisClient.del(redisKey);
-
+    const summaryRediskey = `summary:${post._id}`;
+    await redisClient.del(summaryRediskey);
     return post;
   }
   static async delteComment(commentId: string, postId: string, userId: any) {
@@ -149,6 +150,7 @@ class PhotoClass {
     if (!post) {
       throw new Error("Post not found");
     }
+
     const isValid = post.comments.find((c: any) => c._id == commentId);
     console.log(isValid);
     if (!isValid) throw new Error("comment not founr");
@@ -175,9 +177,22 @@ class PhotoClass {
       throw new Error("error deleting comment");
     }
     const redisKey = `user:photos:${delComment.userId}`;
+    const summaryRediskey = `summary:${post._id}`;
+
     await redisClient.del(redisKey);
+    await redisClient.del(summaryRediskey);
 
     return delComment;
+  }
+  static async getCommentsforSummary(postId: string) {
+    const post = await Posts.findById({ _id: postId })
+      .sort({ createdAt: -1 })
+      .limit(6);
+    if (!post) {
+      throw new Error("no post found with this id");
+    }
+    const commentsArray = post.comments.map((c) => c.text);
+    return commentsArray;
   }
   static async Likepost(postId: string, userId: any) {
     const post = await Posts.findById({ _id: postId });

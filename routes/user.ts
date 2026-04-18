@@ -44,7 +44,11 @@ import {
 } from "../controller/follow";
 import { getNotifications } from "../controller/notification";
 import { verify } from "node:crypto";
-import { deleteCommnet, PostComment } from "../controller/comments";
+import {
+  deleteCommnet,
+  getCommentsAiSummary,
+  PostComment,
+} from "../controller/comments";
 const user = express.Router();
 // --------- POST ---------
 user.post("/login", login);
@@ -95,6 +99,7 @@ user.get(
   getFollowings,
 );
 user.get("/all/post", verifyToken, getPhthosForExplore);
+user.get("/summary/comments/:postId", verifyToken, getCommentsAiSummary);
 // --- get the followings post ------
 user.get("/post", verifyToken, checkValidUser, getFollowingsPost);
 user.get("/get", verifyToken, checkValidUser, getFollowingsPost);

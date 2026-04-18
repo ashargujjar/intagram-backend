@@ -159,6 +159,7 @@ const notificationSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
+
 notificationSchema.index({ userId: 1 });
 
 export const Posts = mongoose.model("Post", postSchema);

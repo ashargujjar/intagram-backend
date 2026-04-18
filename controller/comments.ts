@@ -2,6 +2,8 @@ import { Response } from "express";
 import { AuthRequest } from "../middleware/verifyToken";
 import { ApiResponse } from "../types/Types";
 import { PhotoClass } from "../model/Photho";
+import { openaiClient, PromptForCommentSummary } from "../util/openai";
+import redisClient from "../util/redis";
 
 export const PostComment = async (
   req: AuthRequest,
@@ -54,5 +56,61 @@ export const deleteCommnet = async (
     return res
       .status(400)
       .json({ success: false, message: "internal server error" });
+  }
+};
+export const getCommentsAiSummary = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  try {
+    const postId: string = String(req.params.postId);
+    if (!postId) {
+      return res.status(400).json({
+        success: false,
+        message: "PostId not found",
+      });
+    }
+
+    const commentsArray: string[] =
+      await PhotoClass.getCommentsforSummary(postId);
+    if (!commentsArray.length) {
+      return res.status(400).json({
+        success: false,
+        message: "comments not found for this post",
+      });
+    }
+    let summary: string = "";
+    const redisKey = `summary:${postId}`;
+    // make sure empty red in the del add comment add it ok
+    const hasSummary = await redisClient.get(redisKey);
+
+    if (hasSummary) {
+      console.log("REDIS SUMAMRY CHACHE IS HIT");
+      summary = JSON.parse(hasSummary);
+      return res.status(200).json({
+        success: true,
+        message: "Summary of comments fetched succesfully",
+        data: summary,
+      });
+    } else {
+      const prompt = PromptForCommentSummary(commentsArray);
+      const response = await openaiClient.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      summary = response.choices[0].message.content || "";
+      await redisClient.set(redisKey, JSON.stringify(summary));
+      return res.status(200).json({
+        success: true,
+        message: "Summary of comments fetched succesfully",
+        data: summary,
+      });
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "some thing went wrong with the server";
   }
 };

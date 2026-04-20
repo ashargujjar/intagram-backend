@@ -95,7 +95,7 @@ export const getCommentsAiSummary = async (
     } else {
       const prompt = PromptForCommentSummary(commentsArray);
       const response = await openaiClient.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "deepseek-chat",
         messages: [{ role: "user", content: prompt }],
       });
 

@@ -5,6 +5,7 @@ import { PhotoClass } from "../model/Photho";
 import { Profile, User } from "../schema/schema";
 import cloudinary from "../util/cloudinary";
 import { unlink } from "node:fs/promises";
+import { openaiClient, promotForImageDescription } from "../util/openai";
 
 const deleteTempFile = async (filePath?: string) => {
   if (!filePath) return;
@@ -21,9 +22,7 @@ export const uploadPhoto = async (
   req: AuthRequest,
   res: Response<ApiResponse>,
 ) => {
-  const files = req.files as
-    | Record<string, Express.Multer.File[]>
-    | undefined;
+  const files = req.files as Record<string, Express.Multer.File[]> | undefined;
   const imageFile = files?.image?.[0] || req.file;
   const audioFile = files?.audio?.[0];
 
@@ -304,6 +303,32 @@ export const getPhthosForExplore = async (
       data: posts,
     });
   } catch (error: any) {
+    const message =
+      error instanceof Error ? error.message : "internal server Error";
+    return res.status(400).json({ success: false, message: message });
+  }
+};
+export const enhancePhotoDescriptionText = async (
+  req: AuthRequest,
+  res: Response<ApiResponse>,
+) => {
+  try {
+    const { descText } = req.body;
+    if (!descText) {
+      throw new Error("Description text is required");
+    }
+    const prompt = promotForImageDescription(descText);
+    const response = await openaiClient.chat.completions.create({
+      model: "deepseek-chat",
+      messages: [{ role: "user" as const, content: prompt }],
+    });
+    const description = response.choices[0].message.content || "";
+    return res.status(200).json({
+      success: true,
+      message: "summarized successfully",
+      data: description,
+    });
+  } catch (error) {
     const message =
       error instanceof Error ? error.message : "internal server Error";
     return res.status(400).json({ success: false, message: message });

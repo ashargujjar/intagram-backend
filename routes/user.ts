@@ -31,6 +31,7 @@ import {
   uploadPhoto,
   getFollowingsPost,
   getPhthosForExplore,
+  enhancePhotoDescriptionText,
 } from "../controller/photos";
 import {
   ConfirmFollowRequest,
@@ -78,6 +79,7 @@ user.post(
   PostComment,
 );
 user.post("/user", verifyToken, SearchUser);
+user.post("/summariseText", verifyToken, enhancePhotoDescriptionText);
 
 // __________ GET ___________
 user.get("/bio", verifyToken, getBio);

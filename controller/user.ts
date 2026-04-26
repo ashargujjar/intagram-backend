@@ -13,6 +13,11 @@ import { ProfileClass } from "../model/Profile";
 import { AuthRequest } from "../middleware/verifyToken";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
+import {
+  RESET_PASSWORD,
+  VERIFY_USER_LOGIN,
+  VERIFY_USER_SIGNUP,
+} from "../schema/zode";
 
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -23,9 +28,13 @@ export const signup = async (
   req: Request<{}, {}, IUser>,
   res: Response<ApiResponse>,
 ) => {
-  const { email, password, username, intrest } = req.body;
-
   try {
+    const result = VERIFY_USER_SIGNUP.safeParse(req.body);
+    if (!result.success) {
+      throw new Error(result.error.issues[0].message);
+    }
+    const { email, password, username, intrest } = result.data;
+
     const User = new UserClass({ username, email, password, intrest });
     const save = await User.save();
     const payload: LpayLoad = {
@@ -71,7 +80,11 @@ export const login = async (
   res: Response<ApiResponse>,
 ) => {
   try {
-    const { username, password } = req.body || {};
+    const result = VERIFY_USER_LOGIN.safeParse(req.body);
+    if (!result.success) {
+      throw new Error(result.error.issues[0].message);
+    }
+    const { username, password } = result.data;
     if (!username || !password) {
       return res.status(400).json({
         success: false,
@@ -343,13 +356,6 @@ export const resetPassword = async (
   req: Request,
   res: Response<ApiResponse>,
 ) => {
-  const { password, token } = req.body || {};
-  if (!password || !token) {
-    return res.status(400).json({
-      success: false,
-      message: "Password and token are required",
-    });
-  }
   if (!process.env.JWT_SECRET_KEY) {
     return res.status(500).json({
       success: false,
@@ -357,6 +363,11 @@ export const resetPassword = async (
     });
   }
   try {
+    const result = RESET_PASSWORD.safeParse(req.body);
+    if (!result.success) {
+      throw new Error(result.error.issues[0].message);
+    }
+    const { password, token } = result.data;
     const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY) as {
       userId: string;
       purpose: string;

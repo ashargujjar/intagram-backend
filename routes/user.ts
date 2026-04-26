@@ -50,6 +50,7 @@ import {
   getCommentsAiSummary,
   PostComment,
 } from "../controller/comments";
+import { Chat } from "../controller/chat";
 const user = express.Router();
 // --------- POST ---------
 user.post("/login", login);
@@ -80,7 +81,7 @@ user.post(
 );
 user.post("/user", verifyToken, SearchUser);
 user.post("/summariseText", verifyToken, enhancePhotoDescriptionText);
-
+user.post("/chat", verifyToken, Chat);
 // __________ GET ___________
 user.get("/bio", verifyToken, getBio);
 user.get("/bio/:username", verifyToken, getBio);

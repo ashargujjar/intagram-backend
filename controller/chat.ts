@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthRequest } from "../middleware/verifyToken";
 import { deepSeekAgent } from "../util/agent";
 import { HumanMessage } from "@langchain/core/messages";
+import { AI_CHAT } from "../schema/zode";
 type agentResponse = {
   user: string;
   success?: boolean;
@@ -11,8 +12,24 @@ export const Chat = async (
   req: AuthRequest,
   res: Response<agentResponse[]>,
 ) => {
-  const { message } = req.body;
-  const hummanMessage = new HumanMessage(message);
+  const zodResult = AI_CHAT.safeParse(req.body);
+  const message = zodResult.data?.message;
+
+  if (!zodResult.success) {
+    return res.status(200).json([
+      {
+        success: true,
+        user: "agent",
+        content: zodResult.error.issues[0].message,
+      },
+      {
+        user: "user",
+        content: message!,
+      },
+    ]);
+  }
+
+  const hummanMessage = new HumanMessage(message as string);
   const agent = await deepSeekAgent();
   const config = { configurable: { thread_id: req.user?.id! } };
 
@@ -27,7 +44,7 @@ export const Chat = async (
       },
       {
         user: "user",
-        content: message,
+        content: message!,
       },
     ]);
   } else {

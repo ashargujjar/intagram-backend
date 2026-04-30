@@ -1,4 +1,5 @@
 import { createClient } from "redis";
+import { Redis } from "@upstash/redis";
 const redisClient = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
 });

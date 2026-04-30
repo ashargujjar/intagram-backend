@@ -24,10 +24,12 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@getbrevo/brevo": "^5.0.4",
     "@langchain/core": "^1.1.40",
     "@langchain/deepseek": "^1.0.24",
     "@langchain/langgraph": "^1.2.9",
     "@types/express": "^5.0.6",
+    "@upstash/redis": "^1.37.0",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.9.0",
     "cors": "^2.8.6",
@@ -40,6 +42,7 @@
     "nodemailer": "^8.0.3",
     "openai": "^6.34.0",
     "redis": "^5.12.1",
+    "sib-api-v3-sdk": "^8.5.0",
     "zod": "^4.3.6"
   }
 }

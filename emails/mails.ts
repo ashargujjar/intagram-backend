@@ -1,4 +1,5 @@
 ﻿import nodemailer from "nodemailer";
+import { brevo } from "../util/brevo";
 
 const transport = nodemailer.createTransport({
   service: "gmail",
@@ -7,12 +8,13 @@ const transport = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 });
+// i changes this normal smtp to bravo
 export const SendMAil = async (to: string, subject: string, html: string) => {
-  await transport.sendMail({
-    from: process.env.EMAIL_USER,
-    to,
+  await brevo.transactionalEmails.sendTransacEmail({
+    sender: { name: "Rabta", email: process.env.RABTA_EMAIL },
+    to: [{ email: to }],
     subject,
-    html,
+    htmlContent: html,
   });
 };
 
@@ -151,4 +153,3 @@ export const buildOtpEmailHtml = (
 </html>
   `.trim();
 };
-

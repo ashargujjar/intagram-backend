@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { Profile, User } from "../schema/schema";
 import redisClient from "../util/redis";
+import { Profileprop } from "../types/Types";
 class ProfileClass {
   static async getBioByUsername(username: string) {
     const user = await User.findOne({ username });
@@ -11,14 +12,12 @@ class ProfileClass {
 
     const userProfile = await redisClient.hGet(redisKey, "profile");
     if (userProfile) {
-      console.log("chach profile hit");
-      return JSON.parse(userProfile);
+      return JSON.parse(userProfile) as Profileprop;
     }
     const profile = await Profile.findOne({ userId: user._id });
     if (!profile) {
-      return null;
+      throw new Error("User profile not found");
     }
-    console.log("backend is hit");
     const profileObj = profile.toObject();
 
     await redisClient
@@ -27,7 +26,7 @@ class ProfileClass {
       .expire(redisKey, Number(process.env.CHACH_EXPIRATION_TIME))
       .exec();
 
-    return profileObj;
+    return profileObj as Profileprop;
   }
   static async saveBio(id: Types.ObjectId, username: string) {
     const save = await Profile.create({ userId: id });
@@ -82,20 +81,24 @@ class ProfileClass {
     return profile.toObject();
   }
 
-  static async updateProfilePhoto(username: string, profilePhoto: string) {
+  static async updateProfilePhoto(
+    username: string,
+    profilePhoto: string,
+    ProfilePublicId: string,
+  ) {
     const user = await User.findOne({ username });
     if (!user) {
-      return null;
+      throw new Error("User not found");
     }
 
     const profile = await Profile.findOneAndUpdate(
       { userId: user._id },
-      { $set: { profilePhoto } },
+      { $set: { profilePhoto, ProfilePublicId } },
       { new: true, upsert: true },
     );
 
     if (!profile) {
-      return null;
+      throw new Error("Error uploading the profile");
     }
     const redisKey = `user:profile:${user._id}`;
     await redisClient.del(redisKey);

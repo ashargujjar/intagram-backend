@@ -28,6 +28,7 @@ export interface Profileprop {
   introAudio?: string;
   introAudioPublicId?: string;
   profilePhoto?: string;
+  ProfilePublicId?: string;
   private?: boolean;
   followers?: number;
   following?: number;

@@ -1,5 +1,11 @@
 import { Request, Response } from "express";
-import { ApiResponse, IUser, LpayLoad, LUser } from "../types/Types";
+import {
+  ApiResponse,
+  IUser,
+  LpayLoad,
+  LUser,
+  Profileprop,
+} from "../types/Types";
 import { UserClass } from "../model/User";
 import { Otp, User } from "../schema/schema";
 import bcrypt from "bcrypt";
@@ -18,6 +24,7 @@ import {
   VERIFY_USER_LOGIN,
   VERIFY_USER_SIGNUP,
 } from "../schema/zode";
+import cloudinary from "../util/cloudinary";
 
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -471,15 +478,26 @@ export const uploadProfile = async (
         .status(400)
         .json({ success: false, message: "No image file uploaded" });
     }
-
-    const photoUrl = `/uploads/${req.file.filename}`;
+    const { path, mimetype } = req.file;
+    if (!mimetype.startsWith("image/")) {
+      throw new Error("Only images are allowed");
+    }
     const existingProfile = await ProfileClass.getBioByUsername(
       req.user!.username,
     );
-    const previousUrl = existingProfile?.profilePhoto;
+    const previousId = existingProfile?.ProfilePublicId;
+    if (previousId) {
+      await cloudinary.uploader.destroy(previousId);
+    }
+    const result = await cloudinary.uploader.upload(path, {
+      folder: "profiles",
+    });
+    const photoUrl = result.secure_url;
+    const ProfilePublicId = result.public_id;
     const updatedProfile = await ProfileClass.updateProfilePhoto(
       req.user!.username,
       photoUrl,
+      ProfilePublicId,
     );
     if (!updatedProfile) {
       return res.status(404).json({
@@ -487,24 +505,7 @@ export const uploadProfile = async (
         message: "Profile not found for this user",
       });
     }
-    if (previousUrl && previousUrl.trim() !== "" && previousUrl !== photoUrl) {
-      const pathname =
-        previousUrl.startsWith("http://") || previousUrl.startsWith("https://")
-          ? new URL(previousUrl).pathname
-          : previousUrl;
-      const relativePath = pathname.replace(/^\/+/, "");
-      const filePath = path.resolve(process.cwd(), relativePath);
-      try {
-        await unlink(filePath);
-      } catch (fileError: any) {
-        if (fileError?.code !== "ENOENT") {
-          console.log(
-            "Error deleting old profile photo:",
-            fileError?.message || fileError,
-          );
-        }
-      }
-    }
+
     return res.status(200).json({
       success: true,
       message: "Profile photo updated successfully",
@@ -517,9 +518,11 @@ export const uploadProfile = async (
       },
     });
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
     return res.status(500).json({
       success: false,
-      message: "Unable to update profile photo",
+      message: message,
     });
   }
 };

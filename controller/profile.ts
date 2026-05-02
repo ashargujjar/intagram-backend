@@ -6,6 +6,7 @@ import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { User } from "../schema/schema";
 import cloudinary from "../util/cloudinary";
+import { error } from "node:console";
 
 const deleteLocalFile = async (url?: string) => {
   if (!url) return;
@@ -183,8 +184,7 @@ export const deleteProfile = async (
       });
     }
 
-    const url = profile.profilePhoto;
-
+    const url = profile.ProfilePublicId;
     if (!url || url.trim() === "") {
       return res.status(200).json({
         success: true,
@@ -199,9 +199,13 @@ export const deleteProfile = async (
       });
     }
 
-    await deleteLocalFile(url);
+    await cloudinary.uploader.destroy(url);
 
-    const updatedProfile = await ProfileClass.updateProfilePhoto(username, "");
+    const updatedProfile = await ProfileClass.updateProfilePhoto(
+      username,
+      "",
+      "",
+    );
     if (!updatedProfile) {
       return res.status(404).json({
         success: false,
@@ -366,7 +370,11 @@ export const deleteIntroAudio = async (
       await deleteLocalFile(url);
     }
 
-    const updatedProfile = await ProfileClass.updateIntroAudio(username, "", "");
+    const updatedProfile = await ProfileClass.updateIntroAudio(
+      username,
+      "",
+      "",
+    );
     if (!updatedProfile) {
       return res.status(404).json({
         success: false,

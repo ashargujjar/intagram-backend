@@ -54,6 +54,8 @@ const profileSchema = new mongoose.Schema({
   introAudio: { type: String, default: "" },
   introAudioPublicId: { type: String, default: "" },
   profilePhoto: { type: String, default: "" },
+  ProfilePublicId: { type: String, default: "" },
+
   private: { type: Boolean, default: false },
   followers: { type: Number, default: 0 },
   followings: { type: Number, default: 0 },

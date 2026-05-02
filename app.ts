@@ -13,10 +13,7 @@ app.use("/uploads", express.static(path.resolve("uploads")));
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://intagram-frontend-pi8i7f9u4-ashar-gujjars-projects.vercel.app",
-    ],
+    origin: ["http://localhost:5173", "https://intagram-frontend.vercel.app"],
     credentials: true,
   }),
 );
